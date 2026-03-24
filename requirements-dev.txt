@@ -1,0 +1,5 @@
+dbt-snowflake>=1.8.0
+sqlfluff>=3.0.0
+sqlfluff-templater-dbt>=3.0.0
+dbt-bouncer>=0.13.0
+pre-commit>=3.0.0

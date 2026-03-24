@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+
+  # ----------------------------------------------------------------------------
+  # Job 1: Lint — SQLFluff + pre-commit (no Snowflake connection needed)
+  # ----------------------------------------------------------------------------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1
+
+      - name: SQLFluff lint
+        run: sqlfluff lint models/ macros/ --dialect snowflake --templater jinja
+
+  # ----------------------------------------------------------------------------
+  # Job 2: dbt Bouncer — enforce project conventions
+  # Parses the project (no query execution) then runs dbt-bouncer
+  # ----------------------------------------------------------------------------
+  bouncer:
+    name: dbt Bouncer
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Write profiles.yml
+        run: |
+          cat <<EOF > profiles.yml
+          zuilense_tennis_club:
+            outputs:
+              dev:
+                type: snowflake
+                account: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+                user: ${{ secrets.SNOWFLAKE_USER }}
+                password: ${{ secrets.SNOWFLAKE_PASSWORD }}
+                role: ${{ secrets.SNOWFLAKE_ROLE }}
+                database: ${{ secrets.SNOWFLAKE_DATABASE }}
+                warehouse: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+                schema: dev
+                threads: 4
+            target: dev
+          EOF
+
+      - name: dbt parse (generates manifest.json)
+        run: dbt parse --profiles-dir .
+
+      - name: Run dbt Bouncer
+        uses: godatadriven/dbt-bouncer@v0
+        with:
+          config-file: ./dbt-bouncer.yml
+          send-pr-comment: "true"
+
+  # ----------------------------------------------------------------------------
+  # Job 3: dbt build — Slim CI against an isolated PR schema
+  # Runs only modified models and their downstream dependencies
+  # ----------------------------------------------------------------------------
+  dbt-ci:
+    name: dbt build (Slim CI)
+    runs-on: ubuntu-latest
+    needs: bouncer
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Write profiles.yml
+        run: |
+          cat <<EOF > profiles.yml
+          zuilense_tennis_club:
+            outputs:
+              ci:
+                type: snowflake
+                account: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+                user: ${{ secrets.SNOWFLAKE_USER }}
+                password: ${{ secrets.SNOWFLAKE_PASSWORD }}
+                role: ${{ secrets.SNOWFLAKE_ROLE }}
+                database: ${{ secrets.SNOWFLAKE_DATABASE }}
+                warehouse: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+                schema: ci_pr_${{ github.event.pull_request.number }}
+                threads: 4
+            target: ci
+          EOF
+
+      - name: dbt build
+        run: |
+          dbt build \
+            --profiles-dir . \
+            --target ci \
+            --select state:modified+ \
+            --defer \
+            --state ./target
+        env:
+          DBT_DEFER_TO_STATE: "true"
