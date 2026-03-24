@@ -1,0 +1,20 @@
+# dbt
+target/
+dbt_packages/
+logs/
+
+# Credentials — managed by dbt Cloud; keep out of git
+profiles.yml
+.env
+
+# Raw data — loaded to Snowflake via scripts/load_to_snowflake.py
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS
+.DS_Store

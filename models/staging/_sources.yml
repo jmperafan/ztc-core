@@ -1,0 +1,11 @@
+sources:
+  - name: ztc
+    database: RAW
+    schema: ZTC
+    tables:
+      - name: court_usage
+        description: This table contains the reservations for our courts.
+      - name: club_members
+        description: This table contains information about our members.
+      - name: weather_data
+        description: Weather related data for the city of Utrecht.
