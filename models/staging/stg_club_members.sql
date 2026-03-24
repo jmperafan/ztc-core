@@ -5,7 +5,7 @@ with source as (
 renamed as (
     select
         CLUBLIDNUMMER                       as member_id,
-        GEBOORTEDATUM                       as birth_date,
+        TO_DATE(GEBOORTEDATUM, 'DD/MM/YYYY') as birth_date,
         POSTCODE                            as post_code,
         WOONPLAATS                          as city,
         LAND                                as country,
@@ -13,7 +13,7 @@ renamed as (
         ROLLEN                              as roll,
         CLUBLID                             as is_club_member,
         BONDSLID                            as is_knltb_member,
-        LID_SINDS                           as member_since,
+        TO_DATE(LID_SINDS, 'DD/MM/YYYY')    as member_since,
         GESLACHT                            as gender,
         ACTIEVE_LIDMAATSCHAP_PEN            as current_type_of_membership,
         ACTIEVE_LIDMAATSCHAP_PEN_DATUM      as current_membership_start_date,

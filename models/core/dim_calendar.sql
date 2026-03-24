@@ -1,12 +1,10 @@
-with generate_date as (
-    select
-        dateadd('day', seq4(), date '{{ var('start_date') }}') as date_key
-    from table(
-        generator(
-            rowcount => datediff('day', date '{{ var('start_date') }}', date '{{ var('end_date') }}')
-        )
-    )
+with recursive date_spine as (
+    select date '{{ var('start_date') }}' as date_key
+    union all
+    select dateadd('day', 1, date_key)
+    from date_spine
+    where date_key < date '{{ var('end_date') }}'
 )
 
-select date_key from generate_date
+select date_key from date_spine
 order by date_key desc
