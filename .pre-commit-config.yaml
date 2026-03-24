@@ -1,22 +1,76 @@
 repos:
+  ######
+  #
+  # Standard hooks for any repo
+  #
+  #####
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-json
+      - id: check-ast
       - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+        args: [--unsafe]
+      - id: debug-statements
+      - id: detect-private-key
+      - id: end-of-file-fixer
+        exclude: .+\.csv$
       - id: no-commit-to-branch
         args: [--branch, main]
 
+  ######
+  #
+  # Hooks for python files
+  #
+  #####
+  - repo: local
+    hooks:
+      - id: isort
+        name: isort
+        entry: isort --profile black --filter-files
+        language: python
+        additional_dependencies: [isort]
+        pass_filenames: true
+        types_or: [python, pyi]
+  - repo: local
+    hooks:
+      - id: black
+        name: Run black formatter
+        entry: black
+        language: python
+        additional_dependencies: [black]
+        pass_filenames: true
+        types_or: [python, pyi]
+  - repo: local
+    hooks:
+      - id: autoflake
+        name: Run autoflake
+        entry: autoflake --in-place --remove-all-unused-imports
+        language: python
+        additional_dependencies: [autoflake]
+        pass_filenames: true
+        types_or: [python, pyi]
+  - repo: local
+    hooks:
+      - id: pyupgrade
+        name: Check for code that can use new Python features
+        entry: pyupgrade --py311-plus
+        language: python
+        additional_dependencies: [pyupgrade]
+        pass_filenames: true
+        types_or: [python, pyi]
+
+  ######
+  #
+  # Hooks for dbt projects
+  #
+  #####
   - repo: https://github.com/sqlfluff/sqlfluff
     rev: 3.1.0
     hooks:
       - id: sqlfluff-lint
-        additional_dependencies:
-          - sqlfluff-templater-dbt
-          - dbt-snowflake
       - id: sqlfluff-fix
-        additional_dependencies:
-          - sqlfluff-templater-dbt
-          - dbt-snowflake

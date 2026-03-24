@@ -14,6 +14,7 @@ Environment variables (set these before running):
 """
 
 import os
+
 import pandas as pd
 import snowflake.connector
 from snowflake.connector.pandas_tools import write_pandas
@@ -69,9 +70,10 @@ def setup_database(cur):
 def sanitize_col(name: str) -> str:
     """Uppercase and replace any non-alphanumeric characters with underscores."""
     import re
+
     name = str(name).upper()
-    name = re.sub(r'[^A-Z0-9]+', '_', name)
-    return name.strip('_')
+    name = re.sub(r"[^A-Z0-9]+", "_", name)
+    return name.strip("_")
 
 
 def upload_table(conn, df: pd.DataFrame, table_name: str):

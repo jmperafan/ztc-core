@@ -1,3 +1,3 @@
-{%- macro age_group(age) -%}
+{% macro age_group(age) %}
     FLOOR({{ age }} / 10) * 10
-{%- endmacro -%}
+{% endmacro %}
