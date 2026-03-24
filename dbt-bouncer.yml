@@ -1,6 +1,6 @@
-manifest_path: target/manifest.json
+dbt_artifacts_dir: target
 
-checks:
+manifest_checks:
 
   # --------------------------------------------------------------------------
   # Naming conventions
@@ -25,7 +25,6 @@ checks:
   # Documentation
   # --------------------------------------------------------------------------
   - name: check_source_description_populated
-    include: ^models/staging
 
   # --------------------------------------------------------------------------
   # Testing
@@ -39,4 +38,3 @@ checks:
   - name: check_model_max_fanout
     include: ^models/
     max_downstream_models: 10
-
