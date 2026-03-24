@@ -7,7 +7,7 @@ on:
 jobs:
 
   # ----------------------------------------------------------------------------
-  # Job 1: Lint — SQLFluff + pre-commit (no Snowflake connection needed)
+  # Job 1: Lint — SQLFluff + pre-commit (no dbt or Snowflake needed)
   # ----------------------------------------------------------------------------
   lint:
     name: Lint
@@ -33,7 +33,8 @@ jobs:
 
   # ----------------------------------------------------------------------------
   # Job 2: dbt Bouncer — enforce project conventions
-  # Parses the project (no query execution) then runs dbt-bouncer
+  # Downloads manifest.json from the latest successful production run via the
+  # dbt Cloud API — no dbt or Snowflake credentials needed in CI.
   # ----------------------------------------------------------------------------
   bouncer:
     name: dbt Bouncer
@@ -52,26 +53,26 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
-      - name: Write profiles.yml
+      - name: Download production manifest from dbt Cloud
         run: |
-          cat <<EOF > profiles.yml
-          zuilense_tennis_club:
-            outputs:
-              dev:
-                type: snowflake
-                account: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-                user: ${{ secrets.SNOWFLAKE_USER }}
-                password: ${{ secrets.SNOWFLAKE_PASSWORD }}
-                role: ${{ secrets.SNOWFLAKE_ROLE }}
-                database: ${{ secrets.SNOWFLAKE_DATABASE }}
-                warehouse: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
-                schema: dev
-                threads: 4
-            target: dev
-          EOF
+          LATEST_RUN=$(curl -sf \
+            -H "Authorization: Token ${{ secrets.DBT_CLOUD_API_TOKEN }}" \
+            "https://cloud.getdbt.com/api/v2/accounts/${{ secrets.DBT_CLOUD_ACCOUNT_ID }}/runs/?job_definition_id=${{ secrets.DBT_CLOUD_PROD_JOB_ID }}&status=10&order_by=-finished_at&limit=1")
 
-      - name: dbt parse (generates manifest.json)
-        run: dbt parse --profiles-dir .
+          RUN_ID=$(echo "$LATEST_RUN" | jq -r '.data[0].id')
+
+          if [ "$RUN_ID" = "null" ] || [ -z "$RUN_ID" ]; then
+            echo "No successful production run found. Cannot fetch manifest."
+            exit 1
+          fi
+
+          mkdir -p target
+          curl -sf \
+            -H "Authorization: Token ${{ secrets.DBT_CLOUD_API_TOKEN }}" \
+            "https://cloud.getdbt.com/api/v2/accounts/${{ secrets.DBT_CLOUD_ACCOUNT_ID }}/runs/$RUN_ID/artifacts/manifest.json" \
+            -o target/manifest.json
+
+          echo "Downloaded manifest from run $RUN_ID"
 
       - name: Run dbt Bouncer
         uses: godatadriven/dbt-bouncer@v0
@@ -80,51 +81,50 @@ jobs:
           send-pr-comment: "true"
 
   # ----------------------------------------------------------------------------
-  # Job 3: dbt build — Slim CI against an isolated PR schema
-  # Runs only modified models and their downstream dependencies
+  # Job 3: dbt Cloud CI — trigger a CI job via the dbt Cloud API and poll until
+  # complete. The job in dbt Cloud should be configured with:
+  #   - Commands: dbt build --select state:modified+
+  #   - Defer to a previous run state: <production job>
+  # The schema_override isolates each PR in its own schema.
   # ----------------------------------------------------------------------------
   dbt-ci:
-    name: dbt build (Slim CI)
+    name: dbt Cloud CI
     runs-on: ubuntu-latest
     needs: bouncer
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install -r requirements-dev.txt
-
-      - name: Write profiles.yml
+      - name: Trigger dbt Cloud CI job
+        id: trigger
         run: |
-          cat <<EOF > profiles.yml
-          zuilense_tennis_club:
-            outputs:
-              ci:
-                type: snowflake
-                account: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-                user: ${{ secrets.SNOWFLAKE_USER }}
-                password: ${{ secrets.SNOWFLAKE_PASSWORD }}
-                role: ${{ secrets.SNOWFLAKE_ROLE }}
-                database: ${{ secrets.SNOWFLAKE_DATABASE }}
-                warehouse: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
-                schema: ci_pr_${{ github.event.pull_request.number }}
-                threads: 4
-            target: ci
-          EOF
+          RESPONSE=$(curl -sf -X POST \
+            -H "Authorization: Token ${{ secrets.DBT_CLOUD_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"cause\":\"PR #${{ github.event.pull_request.number }}\",\"schema_override\":\"ci_pr_${{ github.event.pull_request.number }}\"}" \
+            "https://cloud.getdbt.com/api/v2/accounts/${{ secrets.DBT_CLOUD_ACCOUNT_ID }}/jobs/${{ secrets.DBT_CLOUD_CI_JOB_ID }}/run/")
 
-      - name: dbt build
+          RUN_ID=$(echo "$RESPONSE" | jq -r '.data.id')
+          RUN_URL=$(echo "$RESPONSE" | jq -r '.data.href')
+
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "Triggered run $RUN_ID — $RUN_URL"
+
+      - name: Poll until complete
         run: |
-          dbt build \
-            --profiles-dir . \
-            --target ci \
-            --select state:modified+ \
-            --defer \
-            --state ./target
-        env:
-          DBT_DEFER_TO_STATE: "true"
+          RUN_ID="${{ steps.trigger.outputs.run_id }}"
+
+          while true; do
+            STATUS=$(curl -sf \
+              -H "Authorization: Token ${{ secrets.DBT_CLOUD_API_TOKEN }}" \
+              "https://cloud.getdbt.com/api/v2/accounts/${{ secrets.DBT_CLOUD_ACCOUNT_ID }}/runs/$RUN_ID/" \
+              | jq -r '.data.status')
+
+            echo "Run status: $STATUS"
+
+            case $STATUS in
+              10) echo "Run succeeded"; exit 0 ;;
+              20) echo "Run errored"; exit 1 ;;
+              30) echo "Run cancelled"; exit 1 ;;
+            esac
+
+            sleep 30
+          done

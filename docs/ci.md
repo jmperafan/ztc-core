@@ -1,210 +1,107 @@
 # CI/CD for dbt Projects
 
-This document explains the CI/CD options available for dbt projects and shows how each one is implemented in this repo.
+## The problem
 
----
+Without CI, broken SQL ships to production. A developer changes a model, pushes to main, and the next morning the dashboard is empty or returning wrong numbers. The root cause is usually one of four things:
 
-## What problem does CI solve?
-
-Without CI, broken SQL ships to production. A developer changes a model, pushes to main, and the next morning the dashboard is empty. CI catches this before it merges by running checks and builds automatically on every pull request.
-
-For dbt specifically, CI typically covers four concerns:
-
-| Concern | Question it answers |
+| Issue | Example |
 | --- | --- |
-| **Code style** | Is the SQL formatted consistently? |
-| **Project conventions** | Are models named correctly? Do they have tests and docs? |
-| **Correctness** | Does the SQL actually run without errors? |
-| **Impact** | Which downstream models are affected by this change? |
+| **Style drift** | Two developers format SQL differently; code review becomes about style instead of logic |
+| **Convention violations** | A model is added without tests or documentation; nobody notices until it causes a downstream issue |
+| **Broken SQL** | A model fails to compile or run; it reaches production before anyone catches it |
+| **Unknown blast radius** | A change to a source model breaks 12 downstream models; the author only tested the one they touched |
+
+CI solves this by running automated checks on every pull request, before any code merges.
 
 ---
 
-## The options
+## The toolchain
 
-### 1. Pre-commit hooks
+A mature dbt CI pipeline typically combines four tools. Each solves a different problem.
 
-**What it is**: Checks that run locally before a `git commit` is allowed to complete. Catches issues before they ever reach the remote.
+### Pre-commit hooks
 
-**Best for**: Fast feedback on the developer's machine. No CI credits consumed.
+**What it does**: Runs checks on the developer's machine the moment they try to commit. Catches issues before they ever reach GitHub.
 
-**Trade-off**: Only runs if the developer has installed the hooks (`pre-commit install`). Can be bypassed with `git commit --no-verify`.
+**Why it matters**: The fastest possible feedback loop — problems are surfaced in seconds, not after a 5-minute CI run. It also reduces noise in pull requests: formatting issues and obvious mistakes are fixed locally before anyone else sees the code.
 
-**Configured in**: [`.pre-commit-config.yaml`](../.pre-commit-config.yaml)
+**Typical checks**: trailing whitespace, YAML syntax, SQL linting, blocking direct commits to `main`.
 
-This project runs:
-
-- `trailing-whitespace` — removes trailing spaces
-- `end-of-file-fixer` — ensures files end with a newline
-- `check-yaml` — validates YAML syntax
-- `no-commit-to-branch` — blocks direct commits to `main`
-- `sqlfluff-lint` + `sqlfluff-fix` — lints and auto-fixes SQL style
-
-**How to use**:
-
-```bash
-# Install once per machine
-pre-commit install
-
-# Run manually against everything
-pre-commit run --all-files
-
-# Skip hooks for a single commit (use sparingly)
-git commit --no-verify
-```
+**The trade-off**: Hooks only run if the developer has installed them. They can be bypassed. Think of this as a developer quality-of-life tool, not a hard gate.
 
 ---
 
-### 2. SQLFluff
+### SQLFluff
 
-**What it is**: A SQL linter and auto-formatter. Enforces consistent style — capitalisation, indentation, line length, and more.
+**What it does**: A SQL linter and auto-formatter. Enforces consistent style — capitalisation, indentation, aliasing conventions, line length, and more.
 
-**Best for**: Teams with mixed SQL backgrounds. Stops style debates in code review.
+**Why it matters**: SQL style is subjective and teams argue about it. SQLFluff turns style into a configuration file instead of a conversation. Code review can focus on logic instead of formatting. It also makes diffs cleaner — if everyone's SQL is formatted the same way, changes show only the lines that actually changed.
 
-**Trade-off**: Can be noisy on legacy code. Configure rules incrementally.
-
-**Configured in**: [`.sqlfluff`](../.sqlfluff)
-
-This project enforces:
-
-- Snowflake dialect
-- Keywords, functions, and types in UPPERCASE
-- Max line length of 120 characters
-
-**How to use**:
-
-```bash
-# Check for violations
-sqlfluff lint models/
-
-# Auto-fix what can be fixed
-sqlfluff fix models/
-
-# Lint a single file
-sqlfluff lint models/core/fct_reservations.sql
-```
-
-**Templater note**: We use the `jinja` templater (not `dbt`) so SQLFluff works without a live database connection. This is the right choice for CI environments.
+**The trade-off**: Introducing SQLFluff on an existing project with legacy SQL requires an initial cleanup pass. Rules should be introduced incrementally rather than all at once.
 
 ---
 
-### 3. dbt Bouncer
+### dbt Bouncer
 
-**What it is**: A tool that reads the dbt manifest and enforces project conventions as code. Think of it as a linter for your dbt project structure, not just your SQL.
+**What it does**: Reads the dbt manifest (the compiled representation of your project) and enforces project conventions as code. Think of it as a linter for your project structure, not just your SQL.
 
-**Best for**: Teams that want to enforce naming conventions, documentation requirements, and testing standards automatically — instead of relying on code review.
+**Why it matters**: As a dbt project grows, it becomes harder to enforce conventions through code review alone. dbt Bouncer makes the rules explicit and automatic:
 
-**Trade-off**: Requires `dbt parse` to generate a manifest first. Rules need to be tuned to your project's conventions.
+- All staging models must be named `stg_*`
+- All core models must have at least one unique test
+- Staging models may only read from sources, never from other models
+- No model may have more than 10 downstream dependents
 
-**Configured in**: [`dbt-bouncer.yml`](../dbt-bouncer.yml)
+When a rule is violated, dbt Bouncer posts a comment directly on the pull request explaining what failed and why. The author fixes it before the PR merges — not six months later when the technical debt has compounded.
 
-This project enforces:
-
-| Check | Rule |
-| --- | --- |
-| Naming — staging | Model names must match `^stg_` |
-| Naming — intermediate | Model names must match `^int_` |
-| Naming — core | Model names must match `^(fct_\|dim_\|bridge_)` |
-| Naming — marts | Model names must match `^(fct_\|dim_)` |
-| Testing | Core models must have a unique test |
-| Structure | No model may have more than 10 downstream dependencies |
-| Lineage | Staging models may only read from sources, not other models |
-
-**How to use**:
-
-```bash
-# Generate the manifest (no database connection needed)
-dbt parse
-
-# Run bouncer checks
-dbt-bouncer --config dbt-bouncer.yml
-```
-
-**In GitHub Actions**, dbt Bouncer posts a comment directly on the PR listing any violations, so reviewers see them without opening the Actions log.
+**The trade-off**: Rules need to be defined upfront. This requires agreeing on conventions before automating them. It's an investment, but it pays off quickly on teams larger than two or three people.
 
 ---
 
-### 4. GitHub Actions
+### dbt Cloud CI
 
-**What it is**: Automated workflows that run on GitHub's infrastructure in response to events (pull requests, pushes, schedules).
+**What it does**: dbt Cloud's built-in CI feature. When a pull request is opened, dbt Cloud automatically runs a dbt build and posts the result as a GitHub status check. The PR cannot merge until the build passes.
 
-**Best for**: Teams not on dbt Cloud, or teams that want additional checks beyond what dbt Cloud CI offers.
+**Why it matters**: This is the hard gate. Pre-commit and SQLFluff catch style issues early; dbt Bouncer enforces conventions; dbt Cloud CI verifies that the SQL actually runs without errors against real data.
 
-**Trade-off**: Requires managing Snowflake credentials as GitHub secrets. Each run spins up a fresh environment and installs all dependencies, so it's slower than dbt Cloud CI.
+The key feature is **Slim CI**: instead of rebuilding the entire project on every PR (which could take 30+ minutes on a large project), dbt Cloud builds only the models that changed and their downstream dependents. Everything else is deferred to the last production state. On a large project, this reduces CI run time from 30 minutes to under 2 minutes.
 
-**Configured in**: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
+Each PR runs in its own isolated schema, so CI never touches development or production data.
 
-This project runs three jobs on every PR to `main`:
-
-```
-lint ──► bouncer ──► dbt build (slim CI)
-```
-
-**Job 1 — lint** (no Snowflake connection needed):
-
-- Runs pre-commit hooks
-- Runs SQLFluff lint across `models/` and `macros/`
-
-**Job 2 — bouncer** (requires Snowflake to run `dbt parse`):
-
-- Writes a `profiles.yml` from GitHub Secrets
-- Runs `dbt parse` to generate `target/manifest.json`
-- Runs dbt Bouncer and posts results as a PR comment
-
-**Job 3 — dbt build (Slim CI)**:
-
-- Builds only modified models and their downstream dependencies
-- Runs in an isolated schema `ci_pr_<number>` so it never touches dev or prod
-- Uses `--defer --state ./target` to reference unmodified models from the last production run instead of rebuilding everything
-
-**Required GitHub Secrets** — add under Settings → Secrets → Actions:
-
-| Secret | Value |
-| --- | --- |
-| `SNOWFLAKE_ACCOUNT` | `fka50167` |
-| `SNOWFLAKE_USER` | your username |
-| `SNOWFLAKE_PASSWORD` | your password |
-| `SNOWFLAKE_ROLE` | `TRANSFORMER` |
-| `SNOWFLAKE_DATABASE` | `ANALYTICS_DEV` |
-| `SNOWFLAKE_WAREHOUSE` | `TRANSFORMING` |
+**The trade-off**: Requires a dbt Cloud account. The Slim CI defer feature requires a successful production run to defer against.
 
 ---
 
-### 5. dbt Cloud CI
-
-**What it is**: dbt Cloud's built-in CI feature. When a PR is opened, dbt Cloud automatically runs a dbt build and posts the result as a GitHub status check.
-
-**Best for**: Teams already on dbt Cloud. Zero infrastructure to manage — no GitHub secrets, no self-hosted runners.
-
-**Trade-off**: Requires a dbt Cloud account. The Slim CI `--defer` feature requires a successful production run to defer against.
-
-**How to set it up**:
-
-1. **Create a CI environment** — dbt Cloud → Deploy → Environments → New Environment → set type to "Staging/CI"
-2. **Create a CI job** — Deploy → Jobs → Create Job → select "Continuous Integration Job"
-3. **Set the command**: `dbt build --select state:modified+ --defer --state ./target`
-4. **Connect the repo** — dbt Cloud posts a status check on every PR; the PR cannot merge until it passes
-
-**Slim CI** means only the models touched in the PR (and their downstream dependents) are rebuilt. Everything else is deferred to the production state. On a large project this can reduce CI run time from 30 minutes to under 2 minutes.
-
----
-
-## How the tools fit together
+## How it fits together
 
 ```
-Developer commits
+Developer commits locally
       │
       ▼
-pre-commit hooks ── catches style issues locally, instantly
+Pre-commit hooks ── instant feedback, style + syntax
       │
-      ▼ (git push → PR opened)
+      ▼  (git push → PR opened)
       │
-      ├── GitHub Actions: lint ── SQLFluff across all SQL files
+      ├── SQLFluff ──── consistent SQL style across all files
       │
-      ├── GitHub Actions: bouncer ── naming, docs, test coverage
+      ├── dbt Bouncer ── naming conventions, test coverage, lineage rules
       │
-      ├── GitHub Actions: dbt build ── modified models only, isolated schema
-      │
-      └── dbt Cloud CI ── same slim build, zero infra, native GitHub integration
+      └── dbt Cloud CI ── actual dbt build, modified models only, isolated schema
 ```
 
-Using both GitHub Actions and dbt Cloud CI is intentional for a demo — in practice, most teams pick one. dbt Cloud CI is the simpler choice if you're already on dbt Cloud.
+Each layer catches a different class of problem. The earlier in the pipeline a problem is caught, the cheaper it is to fix.
+
+---
+
+## Is it worth implementing?
+
+The investment is highest upfront — agreeing on conventions, writing the Bouncer rules, configuring the pipeline. After that, the maintenance is low.
+
+The payoff is:
+
+- **Fewer production incidents** caused by broken or untested SQL
+- **Faster code review** because style and convention checks are automated
+- **Confidence to refactor** because CI tells you immediately if a change breaks something downstream
+- **Onboarding** — new team members learn the conventions automatically from the feedback they get on their first PRs
+
+For teams with more than two or three dbt developers, or for any project where a production failure has real business impact, this is worth implementing.
