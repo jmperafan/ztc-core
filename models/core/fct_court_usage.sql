@@ -1,55 +1,57 @@
-with
+WITH
 
-working_hours as (
-  select
-    reservation_id,
-    court_number,
-    reservation_date,
-    start_time,
-    end_time,
-    reservation_type,
-    event_description,
-    DATEDIFF('minute', start_time::time, end_time::time) as duration_in_mins
-  from {{ ref('int_court_usage') }}
+working_hours AS (
+    SELECT
+        reservation_id,
+        court_number,
+        reservation_date,
+        start_time,
+        end_time,
+        reservation_type,
+        event_description,
+        DATEDIFF('minute', start_time::time, end_time::time) AS duration_in_mins
+    FROM {{ ref('int_court_usage') }}
 ),
 
-midnight_closed_hours as (
-  select
-    null as reservation_id,
-    court_number,
-    reservation_date,
-    {{ var('closing_time') }} as start_time,
-    TIME '00:00:00' as end_time,
-    'Gesloten' as reservation_type,
-    'Club niet open' as event_description,
-    60 as duration_in_mins
-  from {{ ref('int_court_date_spine') }}
+midnight_closed_hours AS (
+    SELECT
+        NULL AS reservation_id,
+        court_number,
+        reservation_date,
+        {{ var('closing_time') }} AS start_time,
+        TIME '00:00:00' AS end_time,
+        'Gesloten' AS reservation_type,
+        'Club niet open' AS event_description,
+        60 AS duration_in_mins
+    FROM {{ ref('int_court_date_spine') }}
 ),
 
-morning_closed_hours as (
-  select
-    null as reservation_id,
-    court_number,
-    reservation_date,
-    TIME '00:00:00' as start_time,
-    {{ var('opening_time') }} as end_time,
-    'Gesloten' as reservation_type,
-    'Club niet open' as event_description,
-    480 as duration_in_mins
-  from {{ ref('int_court_date_spine') }}
+morning_closed_hours AS (
+    SELECT
+        NULL AS reservation_id,
+        court_number,
+        reservation_date,
+        TIME '00:00:00' AS start_time,
+        {{ var('opening_time') }} AS end_time,
+        'Gesloten' AS reservation_type,
+        'Club niet open' AS event_description,
+        480 AS duration_in_mins
+    FROM {{ ref('int_court_date_spine') }}
 ),
 
-unioned as (
-  select * from working_hours
-  union select * from midnight_closed_hours
-  union select * from morning_closed_hours
+unioned AS (
+    SELECT * FROM working_hours
+    UNION DISTINCT
+    SELECT * FROM midnight_closed_hours
+    UNION DISTINCT
+    SELECT * FROM morning_closed_hours
 ),
 
-final as (
-  select
-    *,
-    {{ is_winter_break("reservation_date") }} as is_winter_break
-  from unioned
+final AS (
+    SELECT
+        *,
+        {{ is_winter_break("reservation_date") }} AS is_winter_break
+    FROM unioned
 )
 
-select * from final
+SELECT * FROM final

@@ -1,42 +1,42 @@
-with source as (
-    select * from {{ source('ztc', 'club_members') }}
+WITH source AS (
+    SELECT * FROM {{ source('ztc', 'club_members') }}
 ),
 
-renamed as (
-    select
-        CLUBLIDNUMMER                       as member_id,
-        TO_DATE(GEBOORTEDATUM, 'DD/MM/YYYY') as birth_date,
-        POSTCODE                            as post_code,
-        WOONPLAATS                          as city,
-        LAND                                as country,
-        LABELS                              as labels,
-        ROLLEN                              as roll,
-        CLUBLID                             as is_club_member,
-        BONDSLID                            as is_knltb_member,
-        TO_DATE(LID_SINDS, 'DD/MM/YYYY')    as member_since,
-        GESLACHT                            as gender,
-        ACTIEVE_LIDMAATSCHAP_PEN            as current_type_of_membership,
-        ACTIEVE_LIDMAATSCHAP_PEN_DATUM      as current_membership_start_date,
-        INACTIEVE_LIDMAATSCHAP_PEN          as inactive_type_of_membership,
-        INACTIEVE_LIDMAATSCHAP_PEN_DATUM    as former_membership_start_date,
-        ACTIEVE_PRODUCT_EN                  as active_products,
-        ACTIEVE_PRODUCT_EN_DATUM            as active_product_date,
-        INACTIEVE_PRODUCT_EN                as inactive_products,
-        INACTIEVE_PRODUCT_EN_DATUM          as inactive_products_date,
-        EXTRA_INFORMATIE                    as additional_information,
-        OPZEGREDEN                          as reasons_for_cancellation,
-        OPZEGREDEN_OPMERKING                as reasons_for_cancellation_comment,
-        CLUBAPP_LOGIN                       as club_app_login_date,
-        DIENSTENPUNTEN_DIT_SEIZOEN          as services_current_year,
-        TENNIS_SPEELSTERKTE_ENKEL           as singles_level,
-        TENNIS_SPEELSTERKTE_DUBBEL          as doubles_level,
-        PADEL_SPEELSTERKTE                  as padel_level,
-        TENNIS_RATING_ENKEL                 as ranking_singles,
-        TENNIS_RATING_DUBBEL                as ranking_doubles,
-        PADEL_RATING                        as ranking_padel,
-        KEUZE_LIDMAATSCHAP                  as choice_of_membership,
-        VRIJWILLIGERS                       as volunteer_type
-    from source
+renamed AS (
+    SELECT
+        clublidnummer AS member_id,
+        postcode AS post_code,
+        woonplaats AS city,
+        land AS country,
+        labels,
+        rollen AS roll,
+        clublid AS is_club_member,
+        bondslid AS is_knltb_member,
+        geslacht AS gender,
+        actieve_lidmaatschap_pen AS current_type_of_membership,
+        actieve_lidmaatschap_pen_datum AS current_membership_start_date,
+        inactieve_lidmaatschap_pen AS inactive_type_of_membership,
+        inactieve_lidmaatschap_pen_datum AS former_membership_start_date,
+        actieve_product_en AS active_products,
+        actieve_product_en_datum AS active_product_date,
+        inactieve_product_en AS inactive_products,
+        inactieve_product_en_datum AS inactive_products_date,
+        extra_informatie AS additional_information,
+        opzegreden AS reasons_for_cancellation,
+        opzegreden_opmerking AS reasons_for_cancellation_comment,
+        clubapp_login AS club_app_login_date,
+        dienstenpunten_dit_seizoen AS services_current_year,
+        tennis_speelsterkte_enkel AS singles_level,
+        tennis_speelsterkte_dubbel AS doubles_level,
+        padel_speelsterkte AS padel_level,
+        tennis_rating_enkel AS ranking_singles,
+        tennis_rating_dubbel AS ranking_doubles,
+        padel_rating AS ranking_padel,
+        keuze_lidmaatschap AS choice_of_membership,
+        vrijwilligers AS volunteer_type,
+        TO_DATE(geboortedatum, 'DD/MM/YYYY') AS birth_date,
+        TO_DATE(lid_sinds, 'DD/MM/YYYY') AS member_since
+    FROM source
 )
 
-select * from renamed
+SELECT * FROM renamed

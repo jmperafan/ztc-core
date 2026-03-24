@@ -1,14 +1,14 @@
-with club_members as (
-    select * from {{ ref("stg_club_members") }}
+WITH club_members AS (
+    SELECT * FROM {{ ref("stg_club_members") }}
 ),
 
-final as (
-    select
+final AS (
+    SELECT
         *,
-        DATEDIFF('year', birth_date, CURRENT_DATE()) as age,
-        {{ age_group("age") }} as age_group,
-        DATEDIFF('month', member_since, CURRENT_DATE()) as membership_length_in_months
-    from club_members
+        DATEDIFF('year', birth_date, CURRENT_DATE()) AS age,
+        {{ age_group("age") }} AS age_group,
+        DATEDIFF('month', member_since, CURRENT_DATE()) AS membership_length_in_months
+    FROM club_members
 )
 
-select * from final
+SELECT * FROM final
