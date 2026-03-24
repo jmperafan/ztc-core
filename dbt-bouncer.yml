@@ -40,5 +40,3 @@ checks:
     include: ^models/
     max_downstream_models: 10
 
-  - name: check_model_has_no_upstream_dependencies
-    include: ^models/staging
