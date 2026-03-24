@@ -5,8 +5,14 @@ with source as (
 renamed as (
     select
         cast(STARTDATUM as date)                         as reservation_date,
-        TO_TIME(BEGINTIJD) as start_time,
-        TO_TIME(EINDTIJD)  as end_time,
+        CASE WHEN BEGINTIJD LIKE '____-__-__%'
+             THEN CAST(TO_TIMESTAMP(BEGINTIJD, 'YYYY-MM-DD HH24:MI:SS') AS TIME)
+             ELSE TO_TIME(BEGINTIJD)
+        END as start_time,
+        CASE WHEN EINDTIJD LIKE '____-__-__%'
+             THEN CAST(TO_TIMESTAMP(EINDTIJD, 'YYYY-MM-DD HH24:MI:SS') AS TIME)
+             ELSE TO_TIME(EINDTIJD)
+        END as end_time,
         cast(concat(reservation_date, ' ', start_time) as timestamp) as reservation_start,
         cast(concat(reservation_date, ' ', end_time) as timestamp)   as reservation_end,
         UREN                                             as duration_in_hours,
