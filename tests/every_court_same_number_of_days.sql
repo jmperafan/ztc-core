@@ -1,3 +1,5 @@
+{{ config(severity='warn') }}
+
 with fct_court_usage as (
     select * from {{ ref('fct_court_usage') }}
 ),

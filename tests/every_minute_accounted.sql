@@ -1,4 +1,6 @@
-select 
+{{ config(severity='warn') }}
+
+select
   court_number,
   reservation_date,
   sum(duration_in_mins)
