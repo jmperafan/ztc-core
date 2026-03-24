@@ -5,8 +5,8 @@ with source as (
 renamed as (
     select
         cast(STARTDATUM as date)                         as reservation_date,
-        TO_TIME(TO_TIMESTAMP(BEGINTIJD, 'YYYY-MM-DD HH24:MI:SS')) as start_time,
-        TO_TIME(TO_TIMESTAMP(EINDTIJD, 'YYYY-MM-DD HH24:MI:SS'))  as end_time,
+        TO_TIME(BEGINTIJD) as start_time,
+        TO_TIME(EINDTIJD)  as end_time,
         cast(concat(reservation_date, ' ', start_time) as timestamp) as reservation_start,
         cast(concat(reservation_date, ' ', end_time) as timestamp)   as reservation_end,
         UREN                                             as duration_in_hours,
