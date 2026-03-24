@@ -1,9 +1,9 @@
-with source as (
-    select * from {{ ref('stg_weather_data') }}
+WITH source AS (
+    SELECT * FROM {{ ref('stg_weather_data') }}
 ),
 
-final as (
-    select
+final AS (
+    SELECT
         datetime,
         temperature,
         thermal_sensation,
@@ -13,8 +13,8 @@ final as (
         wind_gust,
         wind_speed,
         solar_energy,
-        {{ tennis_weather("temperature", "precipitation", "wind_speed") }} as ideal_weather
-    from source
+        {{ tennis_weather("temperature", "precipitation", "wind_speed") }} AS ideal_weather
+    FROM source
 )
 
-select * from final
+SELECT * FROM final

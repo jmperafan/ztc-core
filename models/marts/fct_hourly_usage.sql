@@ -1,18 +1,18 @@
-with source as (
-    select * from {{ ref('fct_court_usage') }}
-    where is_winter_break = false
+WITH source AS (
+    SELECT * FROM {{ ref('fct_court_usage') }}
+    WHERE is_winter_break = FALSE
 ),
 
-hourly as (
-    select
+hourly AS (
+    SELECT
         reservation_id,
         court_number,
         reservation_date,
-        HOUR(start_time) as start_hour,
         start_time,
         reservation_type,
-        event_description
-    from source
+        event_description,
+        HOUR(start_time) AS start_hour
+    FROM source
 )
 
-select * from hourly
+SELECT * FROM hourly

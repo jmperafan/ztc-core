@@ -1,96 +1,101 @@
-with reservations as (
-  -- One row per reservation
-  select
-    reservation_id,
-    court_number,
-    reservation_date,
-    start_time,
-    end_time,
-    reservation_type,
-    event_description
-  from {{ ref('fct_reservations') }}
+WITH reservations AS (
+    -- One row per reservation
+    SELECT
+        reservation_id,
+        court_number,
+        reservation_date,
+        start_time,
+        end_time,
+        reservation_type,
+        event_description
+    FROM {{ ref('fct_reservations') }}
 ),
 
-window_function as (
-  select
-    court_number,
-    reservation_date,
-    start_time,
-    end_time,
-    lead(start_time, 1) over (
-      partition by reservation_date, court_number
-      order by start_time
-    ) as lead
-  from reservations
+window_function AS (
+    SELECT
+        court_number,
+        reservation_date,
+        start_time,
+        end_time,
+        lead(start_time, 1) OVER (
+            PARTITION BY reservation_date, court_number
+            ORDER BY start_time
+        ) AS lead
+    FROM reservations
 ),
 
-unused_hours as (
-  -- One row per gap between reservations
-  select
-    null as reservation_id,
-    court_number,
-    reservation_date,
-    end_time as start_time,
-    lead as end_time,
-    'Beschikbaar' as reservation_type,
-    'Niet geboekt' as event_description
-  from window_function
-  where end_time < lead
+unused_hours AS (
+    -- One row per gap between reservations
+    SELECT
+        NULL AS reservation_id,
+        court_number,
+        reservation_date,
+        end_time AS start_time,
+        lead AS end_time,
+        'Beschikbaar' AS reservation_type,
+        'Niet geboekt' AS event_description
+    FROM window_function
+    WHERE end_time < lead
 ),
 
-first_hour as (
-  -- One row if the first booking is not at opening time
-  select
-    null as reservation_id,
-    court_number,
-    reservation_date,
-    {{ var('opening_time') }} as start_time,
-    MIN(start_time) as end_time,
-    'Beschikbaar' as reservation_type,
-    'Club niet open' as event_description
-  from reservations
-  group by court_number, reservation_date
-  having MIN(start_time) != {{ var("opening_time") }}
+first_hour AS (
+    -- One row if the first booking is not at opening time
+    SELECT
+        NULL AS reservation_id,
+        court_number,
+        reservation_date,
+        {{ var('opening_time') }} AS start_time,
+        min(start_time) AS end_time,
+        'Beschikbaar' AS reservation_type,
+        'Club niet open' AS event_description
+    FROM reservations
+    GROUP BY court_number, reservation_date
+    HAVING min(start_time) != {{ var("opening_time") }}
 ),
 
-last_hour as (
-  -- One row if the last booking is not at closing time
-  select
-    null as reservation_id,
-    court_number,
-    reservation_date,
-    MAX(end_time) as start_time,
-    {{ var('closing_time') }} as end_time,
-    'Beschikbaar' as reservation_type,
-    'Club niet open' as event_description
-  from reservations
-  group by court_number, reservation_date
-  having MAX(end_time) != {{ var('closing_time') }}
+last_hour AS (
+    -- One row if the last booking is not at closing time
+    SELECT
+        NULL AS reservation_id,
+        court_number,
+        reservation_date,
+        max(end_time) AS start_time,
+        {{ var('closing_time') }} AS end_time,
+        'Beschikbaar' AS reservation_type,
+        'Club niet open' AS event_description
+    FROM reservations
+    GROUP BY court_number, reservation_date
+    HAVING max(end_time) != {{ var('closing_time') }}
 ),
 
-empty_days as (
-  -- One row if a court hasn't been booked on a certain date
-  select
-    null as reservation_id,
-    spine.court_number,
-    spine.reservation_date,
-    {{ var('opening_time') }} as start_time,
-    {{ var('closing_time') }} as end_time,
-    'Beschikbaar' as reservation_type,
-    'Niet geboekt' as event_description
-  from {{ ref('int_court_date_spine') }} as spine
-  left join reservations
-    on spine.reservation_date = reservations.reservation_date
-    and spine.court_number = reservations.court_number
-  where reservations.reservation_type is null
+empty_days AS (
+    -- One row if a court hasn't been booked on a certain date
+    SELECT
+        NULL AS reservation_id,
+        spine.court_number,
+        spine.reservation_date,
+        {{ var('opening_time') }} AS start_time,
+        {{ var('closing_time') }} AS end_time,
+        'Beschikbaar' AS reservation_type,
+        'Niet geboekt' AS event_description
+    FROM {{ ref('int_court_date_spine') }} AS spine
+    LEFT JOIN reservations
+        ON
+            spine.reservation_date = reservations.reservation_date
+            AND spine.court_number = reservations.court_number
+    WHERE reservations.reservation_type IS NULL
 ),
 
-unioned as (
-  select * from reservations
-  union select * from first_hour
-  union select * from last_hour
-  union select * from unused_hours
-  union select * from empty_days
+unioned AS (
+    SELECT * FROM reservations
+    UNION DISTINCT
+    SELECT * FROM first_hour
+    UNION DISTINCT
+    SELECT * FROM last_hour
+    UNION DISTINCT
+    SELECT * FROM unused_hours
+    UNION DISTINCT
+    SELECT * FROM empty_days
 )
 
-select * from unioned
+SELECT * FROM unioned

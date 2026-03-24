@@ -1,33 +1,33 @@
-with source as (
-    select * from {{ source('ztc', 'weather_data') }}
+WITH source AS (
+    SELECT * FROM {{ source('ztc', 'weather_data') }}
 ),
 
-renamed as (
-    select
-        DATETIME,
-        TEMP                as temperature,
-        FEELSLIKE           as thermal_sensation,
-        DEW,
-        HUMIDITY,
-        PRECIP              as precipitation,
-        PRECIPPROB          as precipitation_probability,
-        PRECIPTYPE          as precipitation_type,
-        SNOW,
-        SNOWDEPTH           as snow_depth,
-        WINDGUST            as wind_gust,
-        WINDSPEED           as wind_speed,
-        WINDDIR             as wind_direction,
-        SEALEVELPRESSURE    as sea_level_pressure,
-        CLOUDCOVER          as cloud_cover,
-        VISIBILITY,
-        SOLARRADIATION      as solar_radiation,
-        SOLARENERGY         as solar_energy,
-        UVINDEX             as uv_index,
-        SEVERERISK          as severe_risk,
-        CONDITIONS,
-        ICON,
-        STATIONS
-    from source
+renamed AS (
+    SELECT
+        datetime,
+        temp AS temperature,
+        feelslike AS thermal_sensation,
+        dew,
+        humidity,
+        precip AS precipitation,
+        precipprob AS precipitation_probability,
+        preciptype AS precipitation_type,
+        snow,
+        snowdepth AS snow_depth,
+        windgust AS wind_gust,
+        windspeed AS wind_speed,
+        winddir AS wind_direction,
+        sealevelpressure AS sea_level_pressure,
+        cloudcover AS cloud_cover,
+        visibility,
+        solarradiation AS solar_radiation,
+        solarenergy AS solar_energy,
+        uvindex AS uv_index,
+        severerisk AS severe_risk,
+        conditions,
+        icon,
+        stations
+    FROM source
 )
 
-select * from renamed
+SELECT * FROM renamed

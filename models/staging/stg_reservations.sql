@@ -1,34 +1,36 @@
-with source as (
-    select * from {{ source('ztc', 'court_usage') }}
+WITH source AS (
+    SELECT * FROM {{ source('ztc', 'court_usage') }}
 ),
 
-renamed as (
-    select
-        cast(STARTDATUM as date)                         as reservation_date,
-        CASE WHEN BEGINTIJD LIKE '____-__-__%'
-             THEN CAST(TO_TIMESTAMP(BEGINTIJD, 'YYYY-MM-DD HH24:MI:SS') AS TIME)
-             ELSE TO_TIME(BEGINTIJD)
-        END as start_time,
-        CASE WHEN EINDTIJD LIKE '____-__-__%'
-             THEN CAST(TO_TIMESTAMP(EINDTIJD, 'YYYY-MM-DD HH24:MI:SS') AS TIME)
-             ELSE TO_TIME(EINDTIJD)
-        END as end_time,
-        cast(concat(reservation_date, ' ', start_time) as timestamp) as reservation_start,
-        cast(concat(reservation_date, ' ', end_time) as timestamp)   as reservation_end,
-        UREN                                             as duration_in_hours,
-        cast(right(BANEN, 1) as integer)                as court_number,
-        INSCHRIJVER_PERSOON1                             as player_1,
-        PERSOON2                                         as player_2,
-        PERSOON3                                         as player_3,
-        PERSOON4                                         as player_4,
-        CLUBLIDNUMMER                                    as member_id,
-        TYPE                                             as reservation_type,
-        BESCHRIJVING                                     as event_description
-    from source
-    order by court_number, reservation_start
+renamed AS (
+    SELECT
+        CAST(startdatum AS DATE) AS reservation_date,
+        CASE
+            WHEN begintijd LIKE '____-__-__%'
+                THEN CAST(TO_TIMESTAMP(begintijd, 'YYYY-MM-DD HH24:MI:SS') AS TIME)
+            ELSE TO_TIME(begintijd)
+        END AS start_time,
+        CASE
+            WHEN eindtijd LIKE '____-__-__%'
+                THEN CAST(TO_TIMESTAMP(eindtijd, 'YYYY-MM-DD HH24:MI:SS') AS TIME)
+            ELSE TO_TIME(eindtijd)
+        END AS end_time,
+        CAST(CONCAT(reservation_date, ' ', start_time) AS TIMESTAMP) AS reservation_start,
+        CAST(CONCAT(reservation_date, ' ', end_time) AS TIMESTAMP) AS reservation_end,
+        uren AS duration_in_hours,
+        CAST(RIGHT(banen, 1) AS INTEGER) AS court_number,
+        inschrijver_persoon1 AS player_1,
+        persoon2 AS player_2,
+        persoon3 AS player_3,
+        persoon4 AS player_4,
+        clublidnummer AS member_id,
+        type AS reservation_type,
+        beschrijving AS event_description
+    FROM source
+    ORDER BY court_number, reservation_start
 )
 
-select
-    row_number() over (order by court_number, reservation_start) as reservation_id,
-    *
-from renamed
+SELECT
+    *,
+    ROW_NUMBER() OVER (ORDER BY court_number, reservation_start) AS reservation_id
+FROM renamed

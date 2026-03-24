@@ -1,20 +1,20 @@
-with reservations as (
-    select * from {{ ref("stg_reservations") }}
+WITH reservations AS (
+    SELECT * FROM {{ ref("stg_reservations") }}
 ),
 
-final as (
-    select
+final AS (
+    SELECT
         reservation_id,
         reservation_date,
         reservation_start,
         reservation_end,
-        TO_CHAR(reservation_start, 'HH24:MI:SS')::time as start_time,
-        TO_CHAR(reservation_end, 'HH24:MI:SS')::time as end_time,
-        DATEDIFF('minute', reservation_start, reservation_end) as duration_in_mins,
+        TO_CHAR(reservation_start, 'HH24:MI:SS')::time AS start_time,
+        TO_CHAR(reservation_end, 'HH24:MI:SS')::time AS end_time,
         court_number,
         reservation_type,
-        event_description
-    from reservations
+        event_description,
+        DATEDIFF('minute', reservation_start, reservation_end) AS duration_in_mins
+    FROM reservations
 )
 
-select * from final
+SELECT * FROM final

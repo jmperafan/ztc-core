@@ -3,7 +3,7 @@ case
 
 when CONTAINS({{ column }}, 'am')
 or (CONTAINS({{ column }}, 'pm') and left({{ column }}, 3) = '12:')
-    then REGEXP_SUBSTR({{column}}, '\\d{1,2}:\\d{2}:\\d{2}')
+    then REGEXP_SUBSTR({{ column }}, '\\d{1,2}:\\d{2}:\\d{2}')
 
 when CONTAINS({{ column }}, 'pm')
     then concat(

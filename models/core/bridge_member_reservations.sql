@@ -1,23 +1,23 @@
-with
+WITH
 
-reservations as (
-    select
+reservations AS (
+    SELECT
         reservation_id,
         member_id
-    from {{ ref("stg_reservations") }}
-    where member_id is not null
+    FROM {{ ref("stg_reservations") }}
+    WHERE member_id IS NOT NULL
 ),
 
-members as (
-    select member_id from {{ ref('dim_members') }}
+members AS (
+    SELECT member_id FROM {{ ref('dim_members') }}
 ),
 
-final as (
-    select
+final AS (
+    SELECT
         r.reservation_id,
         r.member_id
-    from reservations r
-    inner join members m on r.member_id = m.member_id
+    FROM reservations AS r
+    INNER JOIN members AS m ON r.member_id = m.member_id
 )
 
-select * from final
+SELECT * FROM final

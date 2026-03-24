@@ -1,8 +1,8 @@
-with members as (
-    select * from {{ ref('dim_members') }}
+WITH members AS (
+    SELECT * FROM {{ ref('dim_members') }}
 )
 
-select
+SELECT
     member_id,
     post_code,
     city,
@@ -37,4 +37,4 @@ select
     age,
     age_group,
     membership_length_in_months
-from members
+FROM members
