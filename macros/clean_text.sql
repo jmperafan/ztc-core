@@ -1,7 +1,7 @@
 {% macro clean_text(column) %}
-    regexp_replace(
-        lower(
-            trim({{ column }})
+    REGEXP_REPLACE(
+        LOWER(
+            TRIM({{ column }})
         ),
         '\s+',
         ' '
