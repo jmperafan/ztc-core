@@ -1,0 +1,61 @@
+name: "2 · dbt Bouncer"
+
+# ----------------------------------------------------------------------------
+# Approach: manifest-based convention enforcement via dbt Cloud API.
+#
+# dbt Bouncer reads the dbt manifest and checks that project conventions are
+# followed — naming patterns, test coverage, lineage rules, and more.
+#
+# Instead of running `dbt parse` (which needs a Snowflake connection), we
+# download the manifest from the latest successful production run via the
+# dbt Cloud API. No database credentials needed in CI.
+#
+# Failures here mean a model violates a project convention (e.g. missing
+# tests, wrong naming pattern, staging model reading from another model).
+# dbt Bouncer posts a comment on the PR explaining what failed.
+#
+# Required secrets:
+#   DBT_CLOUD_API_TOKEN    — dbt Cloud personal or service account token
+#   DBT_CLOUD_ACCOUNT_ID   — numeric account ID from the dbt Cloud URL
+#   DBT_CLOUD_PROD_JOB_ID  — job ID of your production run job
+# ----------------------------------------------------------------------------
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  bouncer:
+    name: dbt Bouncer
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download production manifest from dbt Cloud
+        run: |
+          LATEST_RUN=$(curl -sf \
+            -H "Authorization: Token ${{ secrets.DBT_CLOUD_API_TOKEN }}" \
+            "https://cloud.getdbt.com/api/v2/accounts/${{ secrets.DBT_CLOUD_ACCOUNT_ID }}/runs/?job_definition_id=${{ secrets.DBT_CLOUD_PROD_JOB_ID }}&status=10&order_by=-finished_at&limit=1")
+
+          RUN_ID=$(echo "$LATEST_RUN" | jq -r '.data[0].id')
+
+          if [ "$RUN_ID" = "null" ] || [ -z "$RUN_ID" ]; then
+            echo "No successful production run found. Cannot fetch manifest."
+            exit 1
+          fi
+
+          mkdir -p target
+          curl -sf \
+            -H "Authorization: Token ${{ secrets.DBT_CLOUD_API_TOKEN }}" \
+            "https://cloud.getdbt.com/api/v2/accounts/${{ secrets.DBT_CLOUD_ACCOUNT_ID }}/runs/$RUN_ID/artifacts/manifest.json" \
+            -o target/manifest.json
+
+          echo "Downloaded manifest from run $RUN_ID"
+
+      - name: Run dbt Bouncer
+        uses: godatadriven/dbt-bouncer@v0
+        with:
+          config-file: ./dbt-bouncer.yml
+          send-pr-comment: "true"

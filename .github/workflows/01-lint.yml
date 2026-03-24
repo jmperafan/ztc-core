@@ -1,0 +1,38 @@
+name: "1 · Lint"
+
+# ----------------------------------------------------------------------------
+# Approach: local tooling, no credentials required.
+#
+# Pre-commit hooks catch formatting issues (trailing whitespace, missing
+# newlines, YAML syntax) and SQLFluff enforces consistent SQL style.
+#
+# This is the cheapest CI check — it runs entirely without a database or
+# cloud account. Failures here mean the code isn't ready to review yet.
+# ----------------------------------------------------------------------------
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Pre-commit + SQLFluff
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1
+
+      - name: SQLFluff lint
+        run: sqlfluff lint models/ macros/ --dialect snowflake --templater jinja
