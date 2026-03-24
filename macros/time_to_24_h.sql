@@ -1,15 +1,15 @@
 {% macro time_to_24_h(column) %}
-case
+CASE
 
-when CONTAINS({{ column }}, 'am')
-or (CONTAINS({{ column }}, 'pm') and left({{ column }}, 3) = '12:')
-    then REGEXP_SUBSTR({{ column }}, '\\d{1,2}:\\d{2}:\\d{2}')
+WHEN CONTAINS({{ column }}, 'am')
+OR (CONTAINS({{ column }}, 'pm') AND LEFT({{ column }}, 3) = '12:')
+    THEN REGEXP_SUBSTR({{ column }}, '\\d{1,2}:\\d{2}:\\d{2}')
 
-when CONTAINS({{ column }}, 'pm')
-    then concat(
-        cast(cast(REGEXP_SUBSTR({{ column }}, '^\\d{1,2}') as integer) + 12 as string),
+WHEN CONTAINS({{ column }}, 'pm')
+    THEN CONCAT(
+        CAST(CAST(REGEXP_SUBSTR({{ column }}, '^\\d{1,2}') AS INTEGER) + 12 AS STRING),
         REGEXP_SUBSTR({{ column }}, ':\\d{2}:\\d{2}')
     )
 
-end
+END
 {% endmacro %}

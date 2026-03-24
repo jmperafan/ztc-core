@@ -2,10 +2,10 @@
 (
     -- Winter break in 2022
     {{ date }} >= '2022-01-01'
-    and {{ date }} <= '2022-03-19'
-) or (
+    AND {{ date }} <= '2022-03-19'
+) OR (
     -- Winter break in 2023
     {{ date }} >= '2022-12-06'
-    and {{ date }} <= '2023-03-26'
+    AND {{ date }} <= '2023-03-26'
 )
 {% endmacro %}

@@ -18,3 +18,8 @@ capitalisation_policy = upper
 
 [sqlfluff:templater:jinja]
 apply_dbt_builtins = true
+
+[sqlfluff:templater:jinja:macros]
+age_group_macro = """{% macro age_group(age) %}0{% endmacro %}"""
+tennis_weather_macro = """{% macro tennis_weather(temperature, precipitation, wind_speed) %}1 = 1{% endmacro %}"""
+is_winter_break_macro = """{% macro is_winter_break(date) %}1 = 1{% endmacro %}"""

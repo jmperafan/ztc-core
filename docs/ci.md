@@ -105,3 +105,143 @@ The payoff is:
 - **Onboarding** — new team members learn the conventions automatically from the feedback they get on their first PRs
 
 For teams with more than two or three dbt developers, or for any project where a production failure has real business impact, this is worth implementing.
+
+---
+
+## Testing locally
+
+You don't need to open a pull request to run any of these checks. Each tool can be run directly on your machine.
+
+### Setup
+
+Install the dev dependencies once:
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+---
+
+### Pre-commit
+
+**Install the hooks** (one-time, per clone):
+
+```bash
+pre-commit install
+```
+
+After this, hooks run automatically on every `git commit`. To run them manually against all files without committing:
+
+```bash
+pre-commit run --all-files
+```
+
+To run a single hook (e.g. just trailing-whitespace):
+
+```bash
+pre-commit run trailing-whitespace --all-files
+```
+
+To run only against files you've staged:
+
+```bash
+pre-commit run
+```
+
+> Note: The `no-commit-to-branch` hook will block commits directly to `main`. This is intentional — use a feature branch.
+
+---
+
+### SQLFluff
+
+**Lint** — report violations without changing files:
+
+```bash
+sqlfluff lint models/ macros/ --dialect snowflake --templater jinja
+```
+
+**Fix** — auto-correct violations in place:
+
+```bash
+sqlfluff fix models/ macros/ --dialect snowflake --templater jinja
+```
+
+To target a single file:
+
+```bash
+sqlfluff lint models/staging/stg_my_model.sql --dialect snowflake --templater jinja
+```
+
+---
+
+### dbt Bouncer
+
+dbt Bouncer reads `target/manifest.json`, so you need a compiled manifest before running it.
+
+**Step 1 — generate the manifest:**
+
+```bash
+dbt parse
+# or, if you want a full compile:
+dbt compile
+```
+
+Both commands write `target/manifest.json`. `dbt parse` is faster and doesn't require a live warehouse connection.
+
+**Step 2 — run dbt Bouncer:**
+
+```bash
+dbt-bouncer --config-file dbt-bouncer.yml
+```
+
+If a check fails, the output tells you which rule failed and which model triggered it — the same information that would appear as a PR comment in CI.
+
+---
+
+### GitHub Actions (act)
+
+To run the full GitHub Actions workflow locally, use [act](https://github.com/nektos/act). It runs your `.github/workflows/` files inside Docker containers that simulate the GitHub Actions environment.
+
+**Install act** (macOS):
+
+```bash
+brew install act
+```
+
+**Run the CI workflow** as if a pull request was opened:
+
+```bash
+act pull_request
+```
+
+**Pass secrets** that the workflow needs (dbt Cloud API token, account ID, job IDs):
+
+```bash
+act pull_request \
+  --secret DBT_CLOUD_API_TOKEN=your_token \
+  --secret DBT_CLOUD_ACCOUNT_ID=your_account_id \
+  --secret DBT_CLOUD_PROD_JOB_ID=your_prod_job_id \
+  --secret DBT_CLOUD_CI_JOB_ID=your_ci_job_id
+```
+
+Alternatively, store secrets in a local file (never commit this):
+
+```bash
+# .secrets (add to .gitignore)
+DBT_CLOUD_API_TOKEN=your_token
+DBT_CLOUD_ACCOUNT_ID=your_account_id
+DBT_CLOUD_PROD_JOB_ID=your_prod_job_id
+DBT_CLOUD_CI_JOB_ID=your_ci_job_id
+```
+
+```bash
+act pull_request --secret-file .secrets
+```
+
+**Run only a specific job** (e.g. just lint, skipping bouncer and dbt Cloud):
+
+```bash
+act pull_request --job lint
+```
+
+> act requires Docker. On first run it will prompt you to choose a runner image — the "medium" image (~500 MB) works for this workflow.
