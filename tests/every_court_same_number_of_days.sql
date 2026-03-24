@@ -1,24 +1,23 @@
 {{ config(severity='warn') }}
 
-with fct_court_usage as (
-    select * from {{ ref('fct_court_usage') }}
+WITH fct_court_usage AS (
+    SELECT * FROM {{ ref('fct_court_usage') }}
 ),
 
-count_of_days as (
-    select count(distinct reservation_date) as n
-    from fct_court_usage
+count_of_days AS (
+    SELECT COUNT(DISTINCT reservation_date) AS n
+    FROM fct_court_usage
 ),
 
-days_per_court as (
-    select
+days_per_court AS (
+    SELECT
         court_number,
-        count(distinct reservation_date) as n
-    from {{ ref('fct_court_usage') }}
-    group by all
+        COUNT(DISTINCT reservation_date) AS n
+    FROM {{ ref('fct_court_usage') }}
+    GROUP BY ALL
 )
 
-select * from days_per_court
-where n != (
-    select n from count_of_days
+SELECT * FROM days_per_court
+WHERE n != (
+    SELECT n FROM count_of_days
 )
-
