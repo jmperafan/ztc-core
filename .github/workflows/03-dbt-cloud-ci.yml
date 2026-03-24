@@ -36,14 +36,21 @@ jobs:
       - name: Trigger dbt Cloud CI job
         id: trigger
         run: |
-          RESPONSE=$(curl -sf -X POST \
+          RESPONSE=$(curl -s -X POST \
             -H "Authorization: Token ${{ secrets.DBT_CLOUD_API_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d "{\"cause\":\"PR #${{ github.event.pull_request.number }}\",\"schema_override\":\"ci_pr_${{ github.event.pull_request.number }}\"}" \
             "https://cloud.getdbt.com/api/v2/accounts/${{ secrets.DBT_CLOUD_ACCOUNT_ID }}/jobs/${{ secrets.DBT_CLOUD_CI_JOB_ID }}/run/")
 
+          echo "API response: $RESPONSE"
+
           RUN_ID=$(echo "$RESPONSE" | jq -r '.data.id')
           RUN_URL=$(echo "$RESPONSE" | jq -r '.data.href')
+
+          if [ "$RUN_ID" = "null" ] || [ -z "$RUN_ID" ]; then
+            echo "Failed to trigger dbt Cloud run. See API response above."
+            exit 1
+          fi
 
           echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
           echo "Triggered run $RUN_ID — $RUN_URL"
