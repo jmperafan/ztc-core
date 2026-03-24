@@ -1,6 +1,16 @@
-# ZTC Court Usage
+# ZTC Court Usage — Demo Playground
 
-dbt project for analysing court reservations, member demographics, and weather data for Zuilense Tennis Club (Utrecht, NL).
+This project uses real court reservation, member, and weather data from Zuilense Tennis Club (Utrecht, NL) as a realistic dbt dataset for client demos.
+
+Each demo is implemented in the project and documented in [`docs/`](docs/). When a client asks about a feature, we build it here, then walk them through it using this codebase as a reference.
+
+---
+
+## Demos
+
+| Topic | Doc |
+| --- | --- |
+| CI/CD (pre-commit, SQLFluff, dbt Bouncer, GitHub Actions, dbt Cloud) | [docs/ci.md](docs/ci.md) |
 
 ---
 
@@ -12,9 +22,19 @@ models/
 ├── intermediate/   # Business logic & gap-filling (views)
 ├── core/           # Fact & dimension tables (tables)
 └── marts/          # Anonymised analytical outputs (tables)
+docs/               # One markdown file per demo topic
+scripts/            # Utility scripts (e.g. data upload)
 ```
 
-Source data lives in `RAW.ZTC` (Snowflake). Transformed models are written to `ANALYTICS_DEV.<schema>`.
+Source data lives in `RAW.ZTC` (Snowflake). Transformed models land in `ANALYTICS_DEV.<schema>`.
+
+---
+
+## Adding a new demo
+
+1. Implement the feature in the project
+2. Create `docs/<topic>.md` explaining the concept, the options, and how this project demonstrates it
+3. Add a row to the Demos table above
 
 ---
 
@@ -28,7 +48,7 @@ pip install -r requirements-dev.txt
 
 ### 2. Configure credentials
 
-Copy the env vars below into a `.env` file (never commit it):
+Copy into a `.env` file (never commit it):
 
 ```bash
 export SNOWFLAKE_ACCOUNT=fka50167
@@ -39,116 +59,23 @@ export SNOWFLAKE_DATABASE=ANALYTICS_DEV
 export SNOWFLAKE_WAREHOUSE=TRANSFORMING
 ```
 
-Then load them:
+Then load:
 
 ```bash
 source .env
 ```
 
-### 3. Run dbt
-
-```bash
-dbt debug          # verify connection
-dbt build          # run all models + tests
-dbt build --select staging         # run only staging layer
-dbt build --select +dim_members    # run dim_members and all upstream models
-```
-
----
-
-## Pre-commit hooks
-
-Hooks run automatically on every `git commit`:
-
-- Trailing whitespace / end-of-file checks
-- Prevents direct commits to `main`
-- SQLFluff lint & auto-fix
-
-Install once:
+### 3. Install pre-commit hooks
 
 ```bash
 pre-commit install
 ```
 
-Run manually against all files:
+### 4. Run dbt
 
 ```bash
-pre-commit run --all-files
+dbt debug                          # verify connection
+dbt build                          # run all models + tests
+dbt build --select staging         # staging layer only
+dbt build --select +dim_members    # dim_members and all upstream
 ```
-
----
-
-## SQLFluff
-
-Lints SQL files for style consistency (Snowflake dialect).
-
-```bash
-# Lint
-sqlfluff lint models/ --dialect snowflake
-
-# Auto-fix
-sqlfluff fix models/ --dialect snowflake
-```
-
-Config lives in [.sqlfluff](.sqlfluff). Key rules enforced:
-
-- Keywords, functions, and types must be UPPERCASE
-- Max line length: 120
-
----
-
-## dbt Bouncer
-
-Enforces project conventions by inspecting the dbt manifest.
-
-```bash
-# Generate manifest first
-dbt parse
-
-# Run checks
-dbt-bouncer --config dbt-bouncer.yml
-```
-
-Config lives in [dbt-bouncer.yml](dbt-bouncer.yml). Checks enforced:
-
-- Staging models must be named `stg_*`
-- Intermediate models must be named `int_*`
-- Core models must be named `fct_*`, `dim_*`, or `bridge_*`
-- Core models must have a unique test
-- Staging models must have no upstream dbt dependencies (sources only)
-
----
-
-## CI pipeline (GitHub Actions)
-
-Three jobs run on every pull request to `main`:
-
-| Job | What it does |
-| --- | --- |
-| **Lint** | pre-commit hooks + SQLFluff lint |
-| **dbt Bouncer** | `dbt parse` → enforce naming & testing conventions |
-| **dbt build (Slim CI)** | Build only modified models in an isolated PR schema |
-
-### Required GitHub Secrets
-
-Add these under **Settings → Secrets → Actions**:
-
-| Secret | Value |
-| --- | --- |
-| `SNOWFLAKE_ACCOUNT` | `fka50167` |
-| `SNOWFLAKE_USER` | your username |
-| `SNOWFLAKE_PASSWORD` | your password |
-| `SNOWFLAKE_ROLE` | `TRANSFORMER` |
-| `SNOWFLAKE_DATABASE` | `ANALYTICS_DEV` |
-| `SNOWFLAKE_WAREHOUSE` | `TRANSFORMING` |
-
----
-
-## dbt Cloud CI
-
-dbt Cloud runs Slim CI automatically on every PR:
-
-1. **dbt Cloud → Deploy → Environments** — create a `CI` environment pointing at `ANALYTICS_DEV`
-2. **Deploy → Jobs → Create job** — select "Continuous Integration Job"
-3. Set command: `dbt build --select state:modified+ --defer --state ./target`
-4. Link to the GitHub repo — dbt Cloud will post a status check on every PR
