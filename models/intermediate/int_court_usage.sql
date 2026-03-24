@@ -35,7 +35,7 @@ unused_hours as (
     'Beschikbaar' as reservation_type,
     'Niet geboekt' as event_description
   from window_function
-  where end_time != lead
+  where end_time < lead
 ),
 
 first_hour as (
