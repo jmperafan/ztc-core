@@ -11,6 +11,7 @@ Each demo is implemented in the project and documented in [`docs/`](docs/). When
 | Topic | Doc |
 | --- | --- |
 | CI/CD (pre-commit, SQLFluff, dbt Bouncer, GitHub Actions, dbt Cloud) | [docs/ci.md](docs/ci.md) |
+| Semantic Layer (MetricFlow, metrics as code, Google Sheets connector) | [docs/semantic_layer.md](docs/semantic_layer.md) |
 
 ---
 
