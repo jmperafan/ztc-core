@@ -6,7 +6,10 @@ metrics:
       A rate of 1.0 means every available minute was reserved.
       Winter-break days are excluded because courts are not operational.
     type: ratio
-    numerator: booked_minutes
-    denominator: available_minutes
+    type_params:
+      numerator:
+        name: booked_minutes
+      denominator:
+        name: available_minutes
     filter: |
       {{ Dimension('court_usage_slot__is_winter_break') }} = FALSE
