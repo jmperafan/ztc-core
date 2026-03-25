@@ -6,41 +6,7 @@ metrics:
       A rate of 1.0 means every available minute was reserved.
       Winter-break days are excluded because courts are not operational.
     type: ratio
-    type_params:
-      numerator:
-        name: booked_minutes
-        alias: booked
-      denominator:
-        name: available_minutes
-        alias: available
+    numerator: booked_minutes
+    denominator: available_minutes
     filter: |
       {{ Dimension('court_usage_slot__is_winter_break') }} = FALSE
-
-  - name: ideal_weather_hours
-    description: >
-      Count of hours where all tennis-weather conditions were met:
-      temperature between 10°C and 35°C, no precipitation, and wind speed
-      at or below 20 km/h.
-    type: simple
-    type_params:
-      measure:
-        name: ideal_weather_hours
-
-  - name: total_reservations
-    description: >
-      Total number of actual court reservations. Gap-fill and closed-hour rows
-      are excluded because this metric is based on fct_reservations, which
-      contains only real bookings.
-    type: simple
-    type_params:
-      measure:
-        name: reservation_count
-
-  - name: active_members
-    description: >
-      Count of distinct members who currently hold an active club membership
-      (is_club_member = TRUE).
-    type: simple
-    type_params:
-      measure:
-        name: active_member_count

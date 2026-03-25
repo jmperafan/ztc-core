@@ -5,6 +5,9 @@ logs/
 
 # Credentials — managed by dbt Cloud; keep out of git
 profiles.yml
+dbt_cloud.yml
+dbt_cloud.yaml
+.user.yml
 .env
 
 # Raw data — loaded to Snowflake via scripts/load_to_snowflake.py

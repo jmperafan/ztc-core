@@ -1,0 +1,43 @@
+models:
+  - name: dim_members_anonimized
+    description: >
+      Anonymised member dimension. One row per current or former member of ZTC.
+      Use this model to count active members and slice by demographic attributes.
+    semantic_model:
+      enabled: true
+    columns:
+      - name: member_id
+        entity:
+          type: primary
+          name: member
+      - name: member_since
+        granularity: day
+        dimension:
+          type: time
+      - name: gender
+        dimension:
+          type: categorical
+      - name: age_group
+        dimension:
+          type: categorical
+      - name: city
+        dimension:
+          type: categorical
+      - name: current_type_of_membership
+        dimension:
+          type: categorical
+      - name: is_club_member
+        dimension:
+          type: categorical
+      - name: is_knltb_member
+        dimension:
+          type: categorical
+    metrics:
+      - name: active_members
+        description: >
+          Count of distinct members who currently hold an active club membership
+          (is_club_member = TRUE).
+        type: simple
+        agg: count_distinct
+        expr: "CASE WHEN is_club_member = TRUE THEN member_id ELSE NULL END"
+        agg_time_dimension: member_since
