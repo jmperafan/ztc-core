@@ -1,0 +1,122 @@
+models:
+  - name: metricflow_time_spine
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        granularity: day
+
+  - name: metricflow_time_spine_hour
+    time_spine:
+      standard_granularity_column: datetime_hour
+    columns:
+      - name: datetime_hour
+        granularity: hour
+
+  - name: fct_court_usage
+    description: >
+      One row per court-slot covering every minute of every day: actual bookings,
+      available (gap-fill) slots, and closed hours. Use this model to compute
+      court utilization as booked minutes divided by available minutes.
+    semantic_model:
+      enabled: true
+    columns:
+      - name: slot_key
+        entity:
+          type: primary
+          name: court_usage_slot
+      - name: reservation_date
+        granularity: day
+        dimension:
+          type: time
+      - name: court_number
+        dimension:
+          type: categorical
+      - name: reservation_type
+        dimension:
+          type: categorical
+      - name: is_winter_break
+        dimension:
+          type: categorical
+    metrics:
+      - name: booked_minutes
+        description: >
+          Total minutes where reservation_type is a real booking
+          (not available or closed).
+        type: simple
+        agg: sum
+        agg_time_dimension: reservation_date
+        expr: >
+          CASE
+            WHEN reservation_type NOT IN ('Beschikbaar', 'Gesloten')
+            THEN duration_in_mins
+            ELSE 0
+          END
+      - name: available_minutes
+        description: >
+          Total minutes where the court was open to be booked (available + booked,
+          excludes closed hours). Used as the denominator for court utilization.
+        type: simple
+        agg: sum
+        agg_time_dimension: reservation_date
+        expr: >
+          CASE
+            WHEN reservation_type != 'Gesloten'
+            THEN duration_in_mins
+            ELSE 0
+          END
+
+  - name: fct_weather
+    description: >
+      One row per hour of weather data for Utrecht. The ideal_weather boolean
+      is pre-computed using the tennis_weather macro: temperature 10–35°C,
+      no precipitation, wind speed at or below 20 km/h.
+    semantic_model:
+      enabled: true
+    columns:
+      - name: datetime
+        granularity: hour
+        entity:
+          type: primary
+          name: weather_hour
+        dimension:
+          type: time
+      - name: ideal_weather
+        dimension:
+          type: categorical
+    metrics:
+      - name: ideal_weather_hours
+        description: Count of hours where all tennis-weather conditions are met.
+        type: simple
+        agg: sum
+        agg_time_dimension: datetime
+        expr: "CAST(ideal_weather AS INTEGER)"
+
+  - name: fct_reservations
+    description: >
+      One row per actual reservation. This is the cleanest grain for counting
+      bookings — no gap-fill rows, no available/closed slots.
+    semantic_model:
+      enabled: true
+    columns:
+      - name: reservation_id
+        entity:
+          type: primary
+          name: reservation
+      - name: reservation_date
+        granularity: day
+        dimension:
+          type: time
+      - name: court_number
+        dimension:
+          type: categorical
+      - name: reservation_type
+        dimension:
+          type: categorical
+    metrics:
+      - name: total_reservations
+        description: Total number of actual court reservations.
+        type: simple
+        agg: count
+        agg_time_dimension: reservation_date
+        expr: reservation_id

@@ -49,6 +49,13 @@ unioned AS (
 
 final AS (
     SELECT
+        CONCAT(
+            CAST(court_number AS VARCHAR),
+            '_',
+            CAST(reservation_date AS VARCHAR),
+            '_',
+            CAST(start_time AS VARCHAR)
+        ) AS slot_key,
         *,
         {{ is_winter_break("reservation_date") }} AS is_winter_break
     FROM unioned
