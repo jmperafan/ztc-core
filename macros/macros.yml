@@ -1,0 +1,53 @@
+macros:
+  - name: age_group
+    description: >
+      Bins a continuous age value into 10-year groups by flooring to the nearest decade.
+      A member aged 39 falls into the `30` bucket; a member aged 40 falls into `40`.
+    arguments:
+      - name: age
+        type: integer
+        description: The age value to bin (typically DATEDIFF in years from birth_date).
+
+  - name: tennis_weather
+    description: >
+      Returns a boolean SQL condition that evaluates to true when outdoor conditions
+      are suitable for tennis at ZTC. Conditions: temperature between 10°C and 35°C,
+      no precipitation, and wind speed at or below 20 km/h.
+    arguments:
+      - name: temperature
+        type: float
+        description: Temperature column name, in degrees Celsius.
+      - name: precipitation
+        type: float
+        description: Precipitation column name, in millimetres.
+      - name: wind_speed
+        type: float
+        description: Wind speed column name, in kilometres per hour.
+
+  - name: clean_text
+    description: >
+      Standardises a text column by converting to lowercase, trimming leading and
+      trailing whitespace, and collapsing internal whitespace sequences to a single space.
+    arguments:
+      - name: column
+        type: string
+        description: The column or expression to clean.
+
+  - name: time_to_24_h
+    description: >
+      Converts a 12-hour time string (e.g. `'2:00:00 pm'`) to 24-hour format
+      (e.g. `'14:00:00'`). Handles the 12:xx am/pm edge case correctly.
+    arguments:
+      - name: column
+        type: string
+        description: The column containing a 12-hour time string with an am/pm suffix.
+
+  - name: is_winter_break
+    description: >
+      Returns a boolean SQL condition that evaluates to true when a date falls within
+      a known ZTC winter break period. Winter breaks are the periods when outdoor courts
+      are closed. Covers the 2022 and 2022/2023 winter breaks.
+    arguments:
+      - name: date
+        type: date
+        description: The date column to evaluate.
