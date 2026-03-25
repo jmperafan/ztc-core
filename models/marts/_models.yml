@@ -1,4 +1,25 @@
 models:
+  - name: python_court_stats
+    description: >
+      Introductory example of a dbt Python model. Computes descriptive statistics
+      on reservation duration per court — average, median, standard deviation, and
+      total count. Median is the main reason to use Python here: Snowflake SQL has
+      no native MEDIAN aggregate function, making this a natural Python use case.
+    columns:
+      - name: court_number
+        description: Tennis court number (1–5).
+        data_tests:
+          - unique
+          - not_null
+      - name: avg_duration_mins
+        description: Mean reservation duration in minutes for this court.
+      - name: median_duration_mins
+        description: Median reservation duration in minutes for this court.
+      - name: std_duration_mins
+        description: Standard deviation of reservation duration in minutes for this court.
+      - name: total_reservations
+        description: Total number of reservations on this court.
+
   - name: dim_members_anonimized
     description: >
       Anonymised member dimension. One row per current or former member of ZTC.
@@ -7,6 +28,10 @@ models:
       enabled: true
     columns:
       - name: member_id
+        description: Unique club membership number. Primary key.
+        data_tests:
+          - unique
+          - not_null
         entity:
           type: primary
           name: member
@@ -41,3 +66,64 @@ models:
         agg: count_distinct
         expr: "CASE WHEN is_club_member = TRUE THEN member_id ELSE NULL END"
         agg_time_dimension: member_since
+
+  - name: python_member_segments
+    description: >
+      K-means clustering (4 segments) of club members based on their booking behaviour.
+      Each row is one member with their cluster label and the five features used to
+      derive it: total bookings, average duration, average start hour, weekend ratio,
+      and number of distinct courts used. Segment labels are assigned heuristically
+      from cluster centroids: Casual Player, Weekend Player, Frequent Morning Player,
+      and Frequent Evening Player.
+    columns:
+      - name: member_id
+        description: Foreign key to dim_members. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: segment
+        description: Numeric cluster ID (0–3) produced by KMeans.
+        data_tests:
+          - not_null
+      - name: segment_label
+        description: Human-readable segment name derived from cluster characteristics.
+        data_tests:
+          - not_null
+      - name: total_bookings
+        description: Total number of reservations made by the member.
+      - name: avg_duration_mins
+        description: Average reservation length in minutes.
+      - name: avg_start_hour
+        description: Average hour-of-day when the member starts a reservation (24-hour).
+      - name: pct_weekend
+        description: Share of reservations that fall on Saturday or Sunday (0–1).
+      - name: unique_courts
+        description: Number of distinct courts the member has ever booked.
+
+  - name: python_demand_forecast
+    description: >
+      30-day court utilization forecast produced by a day-of-week seasonal model with
+      a recent-trend adjustment. One row per court × forecast date combination. The
+      predicted utilization rate is the share of the operating window (08:00–23:00 =
+      900 minutes) expected to be booked. Winter-break days and closed periods are
+      excluded from the historical training data; monthly seasonal multipliers encode
+      the lower outdoor usage typical of Dutch winters.
+    columns:
+      - name: court_number
+        description: Tennis court number (1–5).
+        data_tests:
+          - not_null
+      - name: forecast_date
+        description: The calendar date being forecast.
+        data_tests:
+          - not_null
+      - name: predicted_utilization_rate
+        description: Expected share of available minutes that will be booked (0–1).
+      - name: day_of_week
+        description: Day-of-week integer for the forecast date (0 = Monday, 6 = Sunday).
+      - name: month
+        description: Calendar month of the forecast date (1–12).
+      - name: forecast_horizon_days
+        description: Number of days ahead of the last observed date this row represents.
+      - name: model_type
+        description: Model identifier — always "seasonal_dow_with_trend" for traceability.

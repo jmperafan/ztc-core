@@ -108,11 +108,11 @@ Standardises a text column: lowercase, trim leading/trailing whitespace, collaps
 **Usage:**
 
 ```sql
--- models/staging/stg_club_members.sql
-{{ clean_text('city') }} AS city
+-- example: models/staging/stg_club_members.sql
+{{ clean_text('woonplaats') }} AS city
 ```
 
-**Why it exists:** Raw text data from member registrations is inconsistent — `'Utrecht'`, `' utrecht '`, and `'UTRECHT  '` all represent the same city. Cleaning happens once at the staging layer using this macro. All downstream models get clean text without knowing the details of how it was cleaned.
+**Why it exists:** Raw text data from member registrations is inconsistent — `'Utrecht'`, `' utrecht '`, and `'UTRECHT  '` all represent the same city. Centralising this logic in a macro means any staging model that needs clean text calls the same function rather than reimplementing it inline.
 
 ---
 
@@ -141,11 +141,11 @@ END
 **Usage:**
 
 ```sql
--- models/staging/stg_reservations.sql
+-- example: any staging model receiving 12-hour time strings
 {{ time_to_24_h('begintijd') }} AS start_time
 ```
 
-**Why it exists:** The reservation system exports times in 12-hour format. The rest of the project uses 24-hour timestamps. This macro handles the conversion — including the 12:xx am/pm edge case — in one place instead of each staging model that touches time columns.
+**Why it exists:** Some source systems export times in 12-hour format. The rest of the project uses 24-hour timestamps. This macro handles the conversion — including the 12:xx am/pm edge case — in one place instead of each staging model that touches time columns.
 
 ---
 

@@ -35,9 +35,11 @@ models:
       +materialized: table
     marts:
       +materialized: table
+    metrics:
+      +materialized: table
 
 vars:
   start_date: '2022-01-01'
-  end_date: '2025-01-01'
   opening_time: cast('08:00:00' as time)
   closing_time: cast('23:00:00' as time)
+  court_numbers: [1, 2, 3, 4, 5]

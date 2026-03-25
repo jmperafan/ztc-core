@@ -5,7 +5,7 @@ dim_calendar AS (
 ),
 
 spine AS (
-    {%- for court_number in [1, 2, 3, 4, 5] -%}
+    {%- for court_number in var('court_numbers') -%}
         SELECT
             {{ court_number }} AS court_number,
             date_key AS reservation_date

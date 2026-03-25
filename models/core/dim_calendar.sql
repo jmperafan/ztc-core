@@ -3,7 +3,7 @@ WITH RECURSIVE date_spine AS (
     UNION ALL
     SELECT dateadd('day', 1, date_key)
     FROM date_spine
-    WHERE date_key < DATE '{{ var('end_date') }}'
+    WHERE date_key < CURRENT_DATE()
 )
 
 SELECT date_key FROM date_spine

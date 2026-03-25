@@ -1,17 +1,26 @@
 models:
-  - name: metricflow_time_spine
-    time_spine:
-      standard_granularity_column: date_day
+  - name: dim_calendar
+    description: >
+      Date dimension covering every calendar day from start_date to the current date.
+      Generated with a recursive CTE. Use date_key to join to fact tables on
+      reservation_date or similar date columns.
     columns:
-      - name: date_day
-        granularity: day
+      - name: date_key
+        description: Calendar date. Primary key.
+        data_tests:
+          - unique
+          - not_null
 
-  - name: metricflow_time_spine_hour
-    time_spine:
-      standard_granularity_column: datetime_hour
+  - name: dim_members
+    description: >
+      One row per club member, enriched with calculated age, age_group bucket,
+      and membership_length_in_months derived at query time from CURRENT_DATE().
     columns:
-      - name: datetime_hour
-        granularity: hour
+      - name: member_id
+        description: Unique club membership number. Primary key.
+        data_tests:
+          - unique
+          - not_null
 
   - name: fct_court_usage
     description: >
@@ -22,20 +31,35 @@ models:
       enabled: true
     columns:
       - name: slot_key
+        description: >
+          Surrogate primary key composed of court_number, reservation_date,
+          and start_time (e.g. "1_2023-06-15_08:00:00").
+        data_tests:
+          - unique
+          - not_null
         entity:
           type: primary
           name: court_usage_slot
       - name: reservation_date
+        description: Calendar date of the slot.
         granularity: day
         dimension:
           type: time
       - name: court_number
+        description: Tennis court number (1–5).
         dimension:
           type: categorical
       - name: reservation_type
+        description: >
+          Type of slot. Actual reservation types from the source system,
+          "Beschikbaar" for available (gap-fill) slots, or "Gesloten" for
+          closed hours outside operating times.
         dimension:
           type: categorical
       - name: is_winter_break
+        description: >
+          True when the slot falls within a known ZTC winter break period
+          (courts closed for the season).
         dimension:
           type: categorical
     metrics:
@@ -75,13 +99,20 @@ models:
       enabled: true
     columns:
       - name: datetime
+        description: Timestamp of the observation, truncated to the hour. Primary key.
         granularity: hour
+        data_tests:
+          - unique
+          - not_null
         entity:
           type: primary
           name: weather_hour
         dimension:
           type: time
       - name: ideal_weather
+        description: >
+          True when all tennis-weather conditions are met: temperature 10–35°C,
+          no precipitation, wind speed ≤ 20 km/h.
         dimension:
           type: categorical
     metrics:
@@ -100,17 +131,24 @@ models:
       enabled: true
     columns:
       - name: reservation_id
+        description: Synthetic surrogate key for the reservation. Primary key.
+        data_tests:
+          - unique
+          - not_null
         entity:
           type: primary
           name: reservation
       - name: reservation_date
+        description: Calendar date on which the reservation takes place.
         granularity: day
         dimension:
           type: time
       - name: court_number
+        description: Tennis court number (1–5).
         dimension:
           type: categorical
       - name: reservation_type
+        description: Category of the reservation as provided by the source system.
         dimension:
           type: categorical
     metrics:

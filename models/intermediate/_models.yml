@@ -1,0 +1,63 @@
+models:
+  - name: bridge_member_reservations
+    description: >
+      Bridge table linking reservations to members. Filters out reservations with
+      no member ID and ensures referential integrity with dim_members via an inner
+      join. One row per reservation that can be attributed to a known club member.
+    columns:
+      - name: reservation_id
+        description: Foreign key to fct_reservations.
+        data_tests:
+          - not_null
+      - name: member_id
+        description: Foreign key to dim_members.
+        data_tests:
+          - not_null
+
+  - name: int_court_date_spine
+    description: >
+      Cross-join of all court numbers and all calendar dates from dim_calendar.
+      Produces a complete grid of every court × date combination, which is used
+      downstream in int_court_usage to detect days with no bookings (empty_days).
+    columns:
+      - name: court_number
+        description: Tennis court number (1–5).
+        data_tests:
+          - not_null
+      - name: reservation_date
+        description: Calendar date, sourced from dim_calendar.
+        data_tests:
+          - not_null
+
+  - name: int_court_usage
+    description: >
+      Gap-filled court usage. Starts from actual reservations in fct_reservations
+      and inserts synthetic "Beschikbaar" rows to cover every unbooked slot within
+      operating hours (opening_time to closing_time). Also handles days with no
+      bookings at all via the empty_days CTE. The result covers every minute of
+      every operating day per court, and is the direct input for fct_court_usage.
+    columns:
+      - name: reservation_id
+        description: >
+          ID of the original reservation for actual bookings. NULL for synthetic
+          gap-fill rows (Beschikbaar slots).
+      - name: court_number
+        description: Tennis court number (1–5).
+        data_tests:
+          - not_null
+      - name: reservation_date
+        description: Calendar date of the slot.
+        data_tests:
+          - not_null
+      - name: start_time
+        description: Start time of the slot (TIME, 24-hour).
+      - name: end_time
+        description: End time of the slot (TIME, 24-hour).
+      - name: reservation_type
+        description: >
+          Type of slot. "Beschikbaar" for gap-fill (available) rows;
+          original reservation_type for actual bookings.
+      - name: event_description
+        description: >
+          Description of the slot. "Niet geboekt" for available gaps;
+          original event_description for actual bookings.

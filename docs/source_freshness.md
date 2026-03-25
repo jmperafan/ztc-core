@@ -30,8 +30,10 @@ Two things are required per source table:
 
 ## Configuration in this project
 
+> **Note:** dbt Fusion does not currently support the `loaded_at_field` / `freshness` syntax at the table level in `_sources.yml`. If you are running on dbt Core, add freshness checks as shown below. On dbt Fusion, use the dbt Cloud UI or wait for freshness support to land in the Fusion runtime.
+
 ```yaml
-# models/staging/_sources.yml
+# models/staging/_sources.yml (dbt Core syntax)
 
 sources:
   - name: ztc
@@ -39,17 +41,17 @@ sources:
     schema: ZTC
     tables:
       - name: court_usage
-        loaded_at_field: startdatum
         freshness:
+          loaded_at_field: startdatum
           warn_after: {count: 7, period: day}
           error_after: {count: 14, period: day}
 
       - name: club_members
-        freshness: null   # No freshness check — no reliable timestamp column
+        # No freshness check — no reliable timestamp column in this table
 
       - name: weather_data
-        loaded_at_field: datetime
         freshness:
+          loaded_at_field: datetime
           warn_after: {count: 24, period: hour}
           error_after: {count: 48, period: hour}
 ```
@@ -60,7 +62,7 @@ sources:
 
 **`weather_data`** uses `datetime` (hourly timestamps). Weather data should refresh daily; a 24-hour warning and 48-hour error catches missed refreshes quickly.
 
-**`club_members`** has no reliable ingestion timestamp in the raw table. Freshness is explicitly set to `null` to skip the check rather than leaving it undefined.
+**`club_members`** has no reliable ingestion timestamp in the raw table. The freshness check is omitted entirely rather than leaving it undefined.
 
 ---
 

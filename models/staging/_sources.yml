@@ -5,16 +5,28 @@ sources:
     tables:
       - name: court_usage
         description: This table contains the reservations for our courts.
-        loaded_at_field: startdatum
-        freshness:
-          warn_after: {count: 7, period: day}
-          error_after: {count: 14, period: day}
+        columns:
+          - name: startdatum
+            description: Date of the reservation.
+            data_tests:
+              - not_null
+          - name: banen
+            description: Raw court identifier string, e.g. "Baan 3".
+            data_tests:
+              - not_null
       - name: club_members
         description: This table contains information about our members.
-        freshness: null
+        columns:
+          - name: clublidnummer
+            description: Unique club membership number. Primary key of this table.
+            data_tests:
+              - unique
+              - not_null
       - name: weather_data
         description: Weather related data for the city of Utrecht.
-        loaded_at_field: datetime
-        freshness:
-          warn_after: {count: 24, period: hour}
-          error_after: {count: 48, period: hour}
+        columns:
+          - name: datetime
+            description: Timestamp of the observation (hourly). Primary key of this table.
+            data_tests:
+              - unique
+              - not_null

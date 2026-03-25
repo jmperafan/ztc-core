@@ -1,0 +1,171 @@
+models:
+  - name: stg_reservations
+    description: >
+      Cleans and renames the raw court_usage source. One row per court reservation.
+      Timestamps are parsed and cast to the correct types; court_number is extracted
+      from the raw court string; reservation_id is a synthetic surrogate key generated
+      with ROW_NUMBER ordered by court and start time.
+    columns:
+      - name: reservation_id
+        description: Synthetic surrogate key — stable only within a single run.
+        data_tests:
+          - unique
+          - not_null
+      - name: reservation_date
+        description: Calendar date on which the reservation takes place.
+      - name: start_time
+        description: Time the reservation starts (TIME, 24-hour).
+      - name: end_time
+        description: Time the reservation ends (TIME, 24-hour).
+      - name: reservation_start
+        description: Full TIMESTAMP combining reservation_date and start_time.
+      - name: reservation_end
+        description: Full TIMESTAMP combining reservation_date and end_time.
+      - name: duration_in_hours
+        description: Raw duration in hours as provided by the source system.
+      - name: court_number
+        description: Tennis court number (1–5), extracted from the raw court string.
+      - name: player_1
+        description: Name of the primary booking member (inschrijver).
+      - name: player_2
+        description: Name of the second player on the reservation.
+      - name: player_3
+        description: Name of the third player on the reservation.
+      - name: player_4
+        description: Name of the fourth player on the reservation.
+      - name: member_id
+        description: Club membership number of the primary booker. NULL for non-member bookings.
+      - name: reservation_type
+        description: Category of the reservation (e.g. lesson, competition, casual).
+      - name: event_description
+        description: Free-text description of the event or booking.
+
+  - name: stg_club_members
+    description: >
+      Cleans and renames the raw club_members source. One row per club member.
+      Dutch column names are translated to English; birth_date and member_since are
+      parsed from DD/MM/YYYY strings to DATE.
+    columns:
+      - name: member_id
+        description: Unique club membership number. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: post_code
+        description: Member's postal code.
+      - name: city
+        description: Member's city of residence.
+      - name: country
+        description: Member's country of residence.
+      - name: labels
+        description: Custom labels assigned to the member in the club system.
+      - name: roll
+        description: Role(s) the member holds at the club (e.g. board, volunteer).
+      - name: is_club_member
+        description: Boolean flag — true if the person holds an active club membership.
+      - name: is_knltb_member
+        description: Boolean flag — true if the member is also registered with the national tennis federation (KNLTB).
+      - name: gender
+        description: Member's gender as recorded by the club.
+      - name: current_type_of_membership
+        description: Name of the currently active membership tier.
+      - name: current_membership_start_date
+        description: Start date of the current membership tier.
+      - name: inactive_type_of_membership
+        description: Name of the most recent lapsed membership tier.
+      - name: former_membership_start_date
+        description: Start date of the most recent lapsed membership tier.
+      - name: active_products
+        description: Additional products (e.g. locker rental) currently subscribed to.
+      - name: active_product_date
+        description: Start date of active additional products.
+      - name: inactive_products
+        description: Additional products that are no longer active.
+      - name: inactive_products_date
+        description: Start date of lapsed additional products.
+      - name: additional_information
+        description: Free-text extra information field from the club system.
+      - name: reasons_for_cancellation
+        description: Reason code for membership cancellation, if applicable.
+      - name: reasons_for_cancellation_comment
+        description: Free-text comment accompanying the cancellation reason.
+      - name: club_app_login_date
+        description: Date the member last logged in to the club app.
+      - name: services_current_year
+        description: Number of volunteer service points accumulated in the current season.
+      - name: singles_level
+        description: KNLTB playing strength rating for singles (lower is stronger).
+      - name: doubles_level
+        description: KNLTB playing strength rating for doubles.
+      - name: padel_level
+        description: Playing strength rating for padel.
+      - name: ranking_singles
+        description: National singles ranking number.
+      - name: ranking_doubles
+        description: National doubles ranking number.
+      - name: ranking_padel
+        description: National padel ranking number.
+      - name: choice_of_membership
+        description: Membership option selected by the member during sign-up.
+      - name: volunteer_type
+        description: Type of volunteer work the member is registered for.
+      - name: birth_date
+        description: Member's date of birth, parsed from the source DD/MM/YYYY format.
+      - name: member_since
+        description: Date the member joined the club, parsed from the source DD/MM/YYYY format.
+
+  - name: stg_weather_data
+    description: >
+      Cleans and renames the raw weather_data source. One row per hour of historical
+      weather observations for Utrecht. All column names are translated from the
+      Visual Crossing API naming convention to readable English.
+    columns:
+      - name: datetime
+        description: Timestamp of the observation (hourly granularity). Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: temperature
+        description: Air temperature in degrees Celsius.
+      - name: thermal_sensation
+        description: Feels-like temperature in degrees Celsius, accounting for wind and humidity.
+      - name: dew
+        description: Dew point temperature in degrees Celsius.
+      - name: humidity
+        description: Relative humidity as a percentage (0–100).
+      - name: precipitation
+        description: Precipitation amount in millimetres.
+      - name: precipitation_probability
+        description: Probability of precipitation occurring (0–100).
+      - name: precipitation_type
+        description: Type of precipitation (e.g. rain, snow, freezingrain).
+      - name: snow
+        description: Snowfall amount in centimetres.
+      - name: snow_depth
+        description: Depth of snow on the ground in centimetres.
+      - name: wind_gust
+        description: Maximum wind gust speed in kilometres per hour.
+      - name: wind_speed
+        description: Average wind speed in kilometres per hour.
+      - name: wind_direction
+        description: Wind direction in degrees (0–360, where 0/360 = North).
+      - name: sea_level_pressure
+        description: Atmospheric pressure at sea level in millibars.
+      - name: cloud_cover
+        description: Cloud cover as a percentage of the sky (0–100).
+      - name: visibility
+        description: Visibility distance in kilometres.
+      - name: solar_radiation
+        description: Solar radiation in watts per square metre.
+      - name: solar_energy
+        description: Solar energy in mega-joules per square metre.
+      - name: uv_index
+        description: UV index value.
+      - name: severe_risk
+        description: Risk score for severe weather events (0–100).
+      - name: conditions
+        description: Human-readable summary of weather conditions (e.g. "Partially cloudy").
+      - name: icon
+        description: Icon identifier for the weather condition, as returned by Visual Crossing.
+      - name: stations
+        description: Comma-separated list of weather station IDs used for this observation.

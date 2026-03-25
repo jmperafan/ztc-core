@@ -1,5 +1,3 @@
-version: 2
-
 exposures:
   - name: semantic_layer_google_sheets
     label: "dbt Semantic Layer — Google Sheets"

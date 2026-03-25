@@ -53,20 +53,21 @@ Project variables are defined in `dbt_project.yml` and accessed with `var()`:
 # dbt_project.yml
 vars:
   start_date: '2022-01-01'
-  end_date: '2025-01-01'
   opening_time: cast('08:00:00' as time)
   closing_time: cast('23:00:00' as time)
+  court_numbers: [1, 2, 3, 4, 5]
 ```
 
 ```sql
 -- models/core/dim_calendar.sql
-WHERE date_key BETWEEN '{{ var("start_date") }}' AND '{{ var("end_date") }}'
+WHERE date_key >= '{{ var("start_date") }}'
+  AND date_key < CURRENT_DATE()
 ```
 
-Change `end_date` in one place, and every model that uses `var("end_date")` picks it up. Variables can also be overridden at runtime:
+Change `start_date` in one place, and every model that uses `var("start_date")` picks it up. Variables can also be overridden at runtime:
 
 ```bash
-dbt run --vars '{"end_date": "2026-01-01"}'
+dbt run --vars '{"start_date": "2023-01-01"}'
 ```
 
 ---
@@ -79,7 +80,7 @@ Use loops to generate repetitive SQL without copy-paste. This project uses a loo
 
 ```sql
 -- models/intermediate/int_court_date_spine.sql
-{%- for court_number in [1, 2, 3, 4, 5] -%}
+{%- for court_number in var('court_numbers') -%}
     SELECT
         {{ court_number }} AS court_number,
         date_key AS reservation_date
@@ -98,7 +99,7 @@ UNION DISTINCT
 -- ... and so on for courts 3, 4, 5
 ```
 
-Adding a 6th court means changing `[1, 2, 3, 4, 5]` to `[1, 2, 3, 4, 5, 6]` in one place.
+Adding a 6th court means updating `court_numbers` in `dbt_project.yml` from `[1, 2, 3, 4, 5]` to `[1, 2, 3, 4, 5, 6]` in one place.
 
 The `loop` object provides useful properties inside a for loop:
 
@@ -194,8 +195,8 @@ To see what Jinja resolves to without executing anything:
 # Compile a single model and write to target/compiled/
 dbt compile --select int_court_date_spine
 
-# Print compiled SQL to stdout
-dbt compile --select int_court_date_spine --no-write-json
+# Print compiled SQL directly to the terminal (dbt 1.5+)
+dbt compile --select int_court_date_spine --output text
 ```
 
 The compiled output lives in `target/compiled/zuilense_tennis_club/models/`. Inspecting it is useful when debugging unexpected query shapes.
