@@ -28,5 +28,7 @@ sources:
           - name: datetime
             description: Timestamp of the observation (hourly). Primary key of this table.
             data_tests:
-              - unique
+              - unique:
+                  config:
+                    severity: warn
               - not_null

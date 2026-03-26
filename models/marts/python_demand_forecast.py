@@ -1,18 +1,35 @@
-import polars as pl
 from datetime import timedelta
+
+import polars as pl
 
 OPENING_HOUR = 8
 CLOSING_HOUR = 23
-AVAILABLE_MINS = (CLOSING_HOUR - OPENING_HOUR) * 60  # 900 — matches opening/closing_time vars
+AVAILABLE_MINS = (
+    CLOSING_HOUR - OPENING_HOUR
+) * 60  # 900 — matches opening/closing_time vars
 FORECAST_HORIZON = 30
 
 # Monthly seasonal multipliers: captures lower outdoor play during Dutch winters
 SEASONAL_FACTORS = pl.DataFrame(
     {
         "month": list(range(1, 13)),
-        "seasonal_factor": [0.65, 0.70, 0.85, 1.00, 1.10, 1.15, 1.10, 1.10, 1.05, 0.90, 0.75, 0.65],
+        "seasonal_factor": [
+            0.65,
+            0.70,
+            0.85,
+            1.00,
+            1.10,
+            1.15,
+            1.10,
+            1.10,
+            1.05,
+            0.90,
+            0.75,
+            0.65,
+        ],
     }
 )
+
 
 def load_usage(dbt) -> pl.DataFrame:
     return (
@@ -24,8 +41,7 @@ def load_usage(dbt) -> pl.DataFrame:
 
 def daily_utilization(usage: pl.DataFrame) -> pl.DataFrame:
     return (
-        usage
-        .filter(pl.col("RESERVATION_TYPE") != "Gesloten")
+        usage.filter(pl.col("RESERVATION_TYPE") != "Gesloten")
         .with_columns(
             pl.when(pl.col("RESERVATION_TYPE") != "Beschikbaar")
             .then(pl.col("DURATION_IN_MINS"))
@@ -35,60 +51,64 @@ def daily_utilization(usage: pl.DataFrame) -> pl.DataFrame:
         .group_by("COURT_NUMBER", "RESERVATION_DATE")
         .agg(pl.col("booked_mins").sum())
         .with_columns(
-            (pl.col("booked_mins") / AVAILABLE_MINS).clip(0, 1).alias("utilization_rate"),
+            (pl.col("booked_mins") / AVAILABLE_MINS)
+            .clip(0, 1)
+            .alias("utilization_rate"),
             pl.col("RESERVATION_DATE").dt.weekday().alias("day_of_week"),
             pl.col("RESERVATION_DATE").dt.month().alias("month"),
         )
     )
 
+
 def dow_baselines(daily: pl.DataFrame) -> pl.DataFrame:
     """Average utilization per court × day-of-week."""
-    return (
-        daily
-        .group_by("COURT_NUMBER", "day_of_week")
-        .agg(pl.col("utilization_rate").mean().alias("dow_avg"))
+    return daily.group_by("COURT_NUMBER", "day_of_week").agg(
+        pl.col("utilization_rate").mean().alias("dow_avg")
     )
+
 
 def trend_factors(daily: pl.DataFrame) -> pl.DataFrame:
     """Per-court ratio of recent (last 28 days) to overall mean, clipped to [0.5, 1.5]."""
     recent_dates = daily["RESERVATION_DATE"].unique().sort(descending=True).head(28)
 
-    overall = (
-        daily
-        .group_by("COURT_NUMBER")
-        .agg(pl.col("utilization_rate").mean().alias("overall_mean"))
+    overall = daily.group_by("COURT_NUMBER").agg(
+        pl.col("utilization_rate").mean().alias("overall_mean")
     )
     recent = (
-        daily
-        .filter(pl.col("RESERVATION_DATE").is_in(recent_dates))
+        daily.filter(pl.col("RESERVATION_DATE").is_in(recent_dates))
         .group_by("COURT_NUMBER")
         .agg(pl.col("utilization_rate").mean().alias("recent_mean"))
     )
     return (
-        overall
-        .join(recent, on="COURT_NUMBER")
+        overall.join(recent, on="COURT_NUMBER")
         .with_columns(
-            (pl.col("recent_mean") / pl.col("overall_mean")).clip(0.5, 1.5).alias("trend_factor")
+            (pl.col("recent_mean") / pl.col("overall_mean"))
+            .clip(0.5, 1.5)
+            .alias("trend_factor")
         )
         .select("COURT_NUMBER", "trend_factor")
     )
+
 
 def build_forecast_grid(daily: pl.DataFrame) -> pl.DataFrame:
     """Cross-join of courts × forecast dates, enriched with day-of-week and seasonal factors."""
     last_date = daily["RESERVATION_DATE"].max()
 
-    forecast_dates = pl.DataFrame({
-        "forecast_date": pl.date_range(
-            start=last_date + timedelta(days=1),
-            end=last_date + timedelta(days=FORECAST_HORIZON),
-            interval="1d",
-            eager=True,
-        ),
-        "forecast_horizon_days": range(1, FORECAST_HORIZON + 1),
-    })
+    forecast_dates = pl.DataFrame(
+        {
+            "forecast_date": pl.date_range(
+                start=last_date + timedelta(days=1),
+                end=last_date + timedelta(days=FORECAST_HORIZON),
+                interval="1d",
+                eager=True,
+            ),
+            "forecast_horizon_days": range(1, FORECAST_HORIZON + 1),
+        }
+    )
 
     return (
-        daily.select("COURT_NUMBER").unique()
+        daily.select("COURT_NUMBER")
+        .unique()
         .join(forecast_dates, how="cross")
         .with_columns(
             pl.col("forecast_date").dt.weekday().alias("day_of_week"),
@@ -96,6 +116,7 @@ def build_forecast_grid(daily: pl.DataFrame) -> pl.DataFrame:
         )
         .join(SEASONAL_FACTORS, on="month")
     )
+
 
 def model(dbt, session):
     dbt.config(
@@ -117,7 +138,7 @@ def model(dbt, session):
             .alias("predicted_utilization_rate")
         )
         .select(
-            pl.col("COURT_NUMBER").alias("court_number"),
+            pl.col("COURT_NUMBER"),
             "forecast_date",
             "predicted_utilization_rate",
             "day_of_week",
@@ -127,4 +148,5 @@ def model(dbt, session):
         )
     )
 
+    result = result.rename({col: col.upper() for col in result.columns})
     return session.create_dataframe(result.to_pandas())

@@ -12,7 +12,7 @@ def model(dbt, session):
     )
 
     # 2. LOAD
-    # dbt.ref() works exactly like {{ ref() }} in SQL — it returns a Snowpark
+    # dbt.ref() works exactly like ref() in SQL — it returns a Snowpark
     # DataFrame pointing at another model. .to_arrow() + pl.from_arrow() is
     # faster than .to_pandas() because it avoids an extra data copy.
     df = pl.from_arrow(dbt.ref("fct_reservations").to_arrow())
@@ -20,15 +20,11 @@ def model(dbt, session):
     # 3. TRANSFORM
     # This is where you do things SQL struggles with, like median.
     # Polars .agg() takes a list of named expressions — one per output column.
-    stats = (
-        df.group_by("COURT_NUMBER")
-        .agg(
-            pl.col("DURATION_IN_MINS").mean().alias("avg_duration_mins"),
-            pl.col("DURATION_IN_MINS").median().alias("median_duration_mins"),
-            pl.col("DURATION_IN_MINS").std().alias("std_duration_mins"),
-            pl.len().alias("total_reservations"),
-        )
-        .rename({"COURT_NUMBER": "court_number"})
+    stats = df.group_by("COURT_NUMBER").agg(
+        pl.col("DURATION_IN_MINS").mean().alias("avg_duration_mins"),
+        pl.col("DURATION_IN_MINS").median().alias("median_duration_mins"),
+        pl.col("DURATION_IN_MINS").std().alias("std_duration_mins"),
+        pl.len().alias("total_reservations"),
     )
 
     # 4. RETURN

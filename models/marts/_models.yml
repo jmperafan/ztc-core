@@ -1,4 +1,25 @@
 models:
+  - name: fct_hourly_usage
+    description: >
+      One row per court slot filtered to non-winter-break days. Adds start_hour
+      (extracted from start_time) for hour-of-day analysis. Thin wrapper over
+      fct_court_usage — use this model when you need to slice court usage by hour.
+    columns:
+      - name: court_number
+        description: Tennis court number (1–5).
+        data_tests:
+          - not_null
+      - name: reservation_date
+        description: Calendar date of the slot.
+      - name: start_time
+        description: Start time of the slot (TIME, 24-hour).
+      - name: start_hour
+        description: Hour component of start_time (0–23).
+      - name: reservation_type
+        description: Type of slot (actual booking, available, or closed).
+      - name: event_description
+        description: Free-text description of the event or booking.
+
   - name: python_court_stats
     description: >
       Introductory example of a dbt Python model. Computes descriptive statistics

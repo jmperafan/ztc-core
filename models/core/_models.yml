@@ -23,6 +23,9 @@ models:
           - not_null
 
   - name: fct_court_usage
+    config:
+      contract:
+        enforced: true
     description: >
       One row per court-slot covering every minute of every day: actual bookings,
       available (gap-fill) slots, and closed hours. Use this model to compute
@@ -31,6 +34,7 @@ models:
       enabled: true
     columns:
       - name: slot_key
+        data_type: varchar
         description: >
           Surrogate primary key composed of court_number, reservation_date,
           and start_time (e.g. "1_2023-06-15_08:00:00").
@@ -40,23 +44,44 @@ models:
         entity:
           type: primary
           name: court_usage_slot
+      - name: reservation_id
+        data_type: number
+        description: >
+          ID of the original reservation for actual bookings.
+          NULL for synthetic gap-fill and closed-hour rows.
+      - name: court_number
+        data_type: number
+        description: Tennis court number (1–5).
+        dimension:
+          type: categorical
       - name: reservation_date
+        data_type: date
         description: Calendar date of the slot.
         granularity: day
         dimension:
           type: time
-      - name: court_number
-        description: Tennis court number (1–5).
-        dimension:
-          type: categorical
+      - name: start_time
+        data_type: time
+        description: Start time of the slot (24-hour).
+      - name: end_time
+        data_type: time
+        description: End time of the slot (24-hour).
       - name: reservation_type
+        data_type: varchar
         description: >
           Type of slot. Actual reservation types from the source system,
           "Beschikbaar" for available (gap-fill) slots, or "Gesloten" for
           closed hours outside operating times.
         dimension:
           type: categorical
+      - name: event_description
+        data_type: varchar
+        description: Description of the event. "Niet geboekt" for available gaps; NULL for closed hours.
+      - name: duration_in_mins
+        data_type: number
+        description: Duration of the slot in minutes.
       - name: is_winter_break
+        data_type: boolean
         description: >
           True when the slot falls within a known ZTC winter break period
           (courts closed for the season).
@@ -89,6 +114,19 @@ models:
             THEN duration_in_mins
             ELSE 0
           END
+      - name: court_utilization_rate
+        description: >
+          Percentage of available court-minutes that were actually booked.
+          Closed hours are excluded from both numerator and denominator.
+          A rate of 1.0 means every available minute was reserved.
+          Winter-break days are excluded because courts are not operational.
+        type: ratio
+        numerator:
+          name: booked_minutes
+        denominator:
+          name: available_minutes
+        filter: |
+          {{ Dimension('court_usage_slot__is_winter_break') }} = FALSE
 
   - name: fct_weather
     description: >

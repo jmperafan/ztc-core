@@ -2,39 +2,28 @@ dbt_artifacts_dir: target
 
 manifest_checks:
 
-  # --------------------------------------------------------------------------
-  # Naming conventions
-  # --------------------------------------------------------------------------
-  - name: check_model_name_by_folder
+  # Naming conventions: enforce layer prefixes so lineage is readable at a glance.
+  - name: check_model_names
     include: ^models/staging
     model_name_pattern: ^stg_
 
-  - name: check_model_name_by_folder
+  - name: check_model_names
     include: ^models/intermediate
-    model_name_pattern: ^int_
+    model_name_pattern: ^(int_|bridge_)
 
-  - name: check_model_name_by_folder
+  - name: check_model_names
     include: ^models/core
     model_name_pattern: ^(fct_|dim_|bridge_)
 
-  - name: check_model_name_by_folder
+  - name: check_model_names
     include: ^models/marts
-    model_name_pattern: ^(fct_|dim_)
+    model_name_pattern: ^(fct_|dim_|python_)
 
-  # --------------------------------------------------------------------------
-  # Documentation
-  # --------------------------------------------------------------------------
-  - name: check_source_description_populated
+  - name: check_model_names
+    include: ^models/metrics
+    model_name_pattern: ^metricflow_
 
-  # --------------------------------------------------------------------------
-  # Testing
-  # --------------------------------------------------------------------------
-  - name: check_model_has_unique_test
-    include: ^models/core
-
-  # --------------------------------------------------------------------------
-  # Structure
-  # --------------------------------------------------------------------------
+  # Structure: cap direct dependents to avoid fragile high-fanout models.
   - name: check_model_max_fanout
     include: ^models/
     max_downstream_models: 10

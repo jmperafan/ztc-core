@@ -1,6 +1,6 @@
 import polars as pl
-from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 
 FEATURE_COLS = [
     "total_bookings",
@@ -11,20 +11,21 @@ FEATURE_COLS = [
 ]
 N_CLUSTERS = 4
 
+
 def load_data(dbt) -> pl.DataFrame:
     reservations = pl.from_arrow(dbt.ref("fct_reservations").to_arrow())
     bridge = pl.from_arrow(dbt.ref("bridge_member_reservations").to_arrow())
     members = pl.from_arrow(dbt.ref("dim_members").to_arrow())
     return (
-        reservations
-        .join(bridge, on="RESERVATION_ID")
-        .join(members.select("MEMBER_ID"), on="MEMBER_ID")
+        reservations.join(bridge, on="RESERVATION_ID")
+        .with_columns(pl.col("MEMBER_ID").cast(pl.Int64))
+        .join(members.select(pl.col("MEMBER_ID").cast(pl.Int64)), on="MEMBER_ID")
     )
+
 
 def engineer_features(df: pl.DataFrame) -> pl.DataFrame:
     return (
-        df
-        .with_columns(
+        df.with_columns(
             pl.col("RESERVATION_START").cast(pl.Datetime).dt.hour().alias("hour"),
             pl.col("RESERVATION_START").cast(pl.Datetime).dt.weekday().alias("weekday"),
         )
@@ -39,10 +40,14 @@ def engineer_features(df: pl.DataFrame) -> pl.DataFrame:
         .fill_null(0)
     )
 
+
 def cluster(features: pl.DataFrame) -> pl.DataFrame:
     X_scaled = StandardScaler().fit_transform(features.select(FEATURE_COLS).to_numpy())
-    labels = KMeans(n_clusters=N_CLUSTERS, random_state=42, n_init=10).fit_predict(X_scaled)
+    labels = KMeans(n_clusters=N_CLUSTERS, random_state=42, n_init=10).fit_predict(
+        X_scaled
+    )
     return features.with_columns(pl.Series("segment", labels.tolist()))
+
 
 def label_segments(features: pl.DataFrame) -> pl.DataFrame:
     stats = features.group_by("segment").agg(
@@ -55,7 +60,10 @@ def label_segments(features: pl.DataFrame) -> pl.DataFrame:
     stats = stats.with_columns(
         pl.when(pl.col("pct_weekend") >= 0.5)
         .then(pl.lit("Weekend Player"))
-        .when((pl.col("total_bookings") >= median_bookings) & (pl.col("avg_start_hour") < 13))
+        .when(
+            (pl.col("total_bookings") >= median_bookings)
+            & (pl.col("avg_start_hour") < 13)
+        )
         .then(pl.lit("Frequent Morning Player"))
         .when(pl.col("total_bookings") >= median_bookings)
         .then(pl.lit("Frequent Evening Player"))
@@ -64,6 +72,7 @@ def label_segments(features: pl.DataFrame) -> pl.DataFrame:
     )
     return features.join(stats.select("segment", "segment_label"), on="segment")
 
+
 def model(dbt, session):
     dbt.config(
         materialized="table",
@@ -71,12 +80,17 @@ def model(dbt, session):
         tags=["python", "ml", "members"],
     )
 
-    return session.create_dataframe(
+    df = (
         load_data(dbt)
         .pipe(engineer_features)
         .pipe(cluster)
         .pipe(label_segments)
         .select(["MEMBER_ID", "segment", "segment_label", *FEATURE_COLS])
-        .rename({"MEMBER_ID": "member_id"})
-        .to_pandas()
+        .rename(
+            {
+                col: col.upper()
+                for col in ["MEMBER_ID", "segment", "segment_label", *FEATURE_COLS]
+            }
+        )
     )
+    return session.create_dataframe(df.to_pandas())

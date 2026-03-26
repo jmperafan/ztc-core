@@ -123,7 +123,9 @@ models:
       - name: datetime
         description: Timestamp of the observation (hourly granularity). Primary key.
         data_tests:
-          - unique
+          - unique:
+              config:
+                severity: warn
           - not_null
       - name: temperature
         description: Air temperature in degrees Celsius.

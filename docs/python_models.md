@@ -196,9 +196,76 @@ Monthly seasonal multipliers encode the lower outdoor usage typical of Dutch win
 | --- | --- |
 | **dbt Fusion** | dbt Fusion (dbt Cloud's newer runtime) does not currently support Python models. These models run on **dbt Core + dbt-snowflake** only. |
 | **No `var()` access** | Python models cannot call `dbt.var('my_var')` the way SQL models use `{{ var() }}`. Values like `opening_hour` and `closing_hour` are defined as module-level constants instead. |
-| **Table only** | Python models cannot be materialised as views. |
+| **Table only** | Python models cannot be materialised as views or as ephemeral models — only `table` and `incremental` are supported. |
 | **Package constraints** | Only packages available in Snowflake's Anaconda channel can be installed. No arbitrary PyPI packages. |
-| **Snowpark execution** | The Python code runs inside Snowflake's Snowpark runtime, not locally. Local IDE linting warnings about unresolved imports (e.g. `polars`) are expected and harmless — the packages are installed at runtime. |
+| **Snowpark execution** | The Python code runs inside Snowflake's Snowpark runtime, not locally. Local IDE linting warnings about unresolved imports (e.g. `polars`) are expected and harmless — the packages are installed at runtime. Memory and execution time are subject to Snowflake's platform limits. |
+| **Adapter support** | Python models are only supported on Snowflake, Databricks, and BigQuery. Most other dbt adapters do not support them. |
+| **One output per model** | A Python model must return exactly one DataFrame. You cannot produce multiple output tables from a single model. |
+| **No Python for non-model resources** | Tests, snapshots, and analyses must be written in SQL. Python is only supported for models. |
+| **Performance vs SQL** | Python models are generally slower than equivalent SQL models — data must be serialised and processed outside the SQL engine. The Polars `to_pandas()` round-trip before returning to Snowpark adds overhead on large datasets. Use Python only where SQL genuinely cannot do the job. |
+
+---
+
+## Tips and tricks
+
+### Keep `model()` thin — extract logic into plain functions
+
+dbt only calls `model()`, but nothing stops you from defining helper functions in the same file. This project does it throughout: `load_usage()`, `daily_utilization()`, `dow_baselines()`, etc. are all plain Python functions that take and return DataFrames. `model()` just orchestrates them.
+
+Benefits:
+
+- Each function is independently testable outside dbt
+- `.pipe()` chains read like a pipeline: `load_usage(dbt).pipe(daily_utilization)`
+- Easier to reuse logic if you split a model later
+
+### Define constants at module level
+
+Configuration values that would normally be dbt variables (`opening_hour`, `closing_hour`, forecast horizon) can live as module-level constants. This project uses `OPENING_HOUR`, `CLOSING_HOUR`, `AVAILABLE_MINS`, `FORECAST_HORIZON`, and `SEASONAL_FACTORS` at the top of the file — outside `model()`. They're immediately visible, easy to change, and don't require a Snowflake connection to inspect.
+
+### Use Arrow as the I/O bridge, not Pandas
+
+When using Polars, prefer `.to_arrow()` over `.to_pandas()` when loading from Snowpark:
+
+```python
+# Slower — two copies: Snowpark → Pandas → Polars
+df = pl.from_pandas(dbt.ref("my_model").to_pandas())
+
+# Faster — one copy: Snowpark → Arrow → Polars
+df = pl.from_arrow(dbt.ref("my_model").to_arrow())
+```
+
+You still need `.to_pandas()` on the way back out (`session.create_dataframe(polars_df.to_pandas())`), because Snowpark has no direct Polars intake. That round-trip is unavoidable, but at least the inbound path is efficient.
+
+### Rename columns to uppercase before returning
+
+Snowflake normalises unquoted column names to uppercase. If you return lowercase column names from a Python model, downstream SQL `ref()`s will break because Snowflake will uppercase them inconsistently. Rename explicitly before returning:
+
+```python
+result = result.rename({col: col.upper() for col in result.columns})
+return session.create_dataframe(result.to_pandas())
+```
+
+All three Python models in this project do this.
+
+### Set `random_state` on any non-deterministic algorithm
+
+ML models like KMeans produce different cluster assignments on every run unless you fix the seed. This causes schema-level instability (segment labels flip between runs) which breaks downstream models and tests. Always set `random_state=42` (or any fixed integer):
+
+```python
+KMeans(n_clusters=4, random_state=42, n_init=10).fit_predict(X_scaled)
+```
+
+### Push filtering upstream, not downstream
+
+Python models are expensive to run. Minimise the data that crosses the Snowpark→Python boundary by filtering as early as possible — ideally in an upstream SQL model, or at least as the first operation after `dbt.ref()`:
+
+```python
+# Good — filter before any Python work
+df = (
+    pl.from_arrow(dbt.ref("fct_court_usage").to_arrow())
+    .filter(pl.col("IS_WINTER_BREAK").cast(pl.Boolean).not_())
+)
+```
 
 ---
 

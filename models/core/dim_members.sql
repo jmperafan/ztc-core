@@ -1,5 +1,5 @@
 WITH club_members AS (
-    SELECT * FROM {{ ref("stg_club_members") }}
+    SELECT * FROM {{ ref("int_club_members") }}
 ),
 
 final AS (
