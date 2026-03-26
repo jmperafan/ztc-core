@@ -12,7 +12,7 @@ def model(dbt, session):
     )
 
     # 2. LOAD
-    # dbt.ref() works exactly like {{ ref() }} in SQL — it returns a Snowpark
+    # dbt.ref() works exactly like ref() in SQL — it returns a Snowpark
     # DataFrame pointing at another model. .to_arrow() + pl.from_arrow() is
     # faster than .to_pandas() because it avoids an extra data copy.
     df = pl.from_arrow(dbt.ref("fct_reservations").to_arrow())
