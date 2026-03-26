@@ -115,11 +115,9 @@ This metric is most useful grouped by `metric_time__month` to show the shape of 
 
 ### total_reservations
 
-**Semantic model**: `fct_reservations` (core layer)
+**Semantic model**: `fct_court_usage` (core layer)
 
-`fct_reservations` contains one row per actual booking with a stable `reservation_id` primary key. This is the right base for counting reservations because there are no gap-fill rows or closed-hour rows to filter out — every row is a real booking.
-
-`fct_court_usage` also contains reservation rows, but mixed with gap-fill rows (where `reservation_id` is NULL). Counting from `fct_reservations` is simpler and avoids any risk of counting nulls.
+`fct_court_usage` contains one row per court slot, including actual bookings, available gaps, and closed hours. `total_reservations` counts only actual bookings by using `COUNT(reservation_id)` — gap-fill and closed-hour rows have a NULL `reservation_id` and are automatically excluded by the COUNT aggregate.
 
 ---
 
