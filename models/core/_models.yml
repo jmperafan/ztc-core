@@ -127,6 +127,12 @@ models:
           name: available_minutes
         filter: |
           {{ Dimension('court_usage_slot__is_winter_break') }} = FALSE
+      - name: total_reservations
+        description: Total number of actual court reservations (excludes gap-fill and closed slots).
+        type: simple
+        agg: count
+        agg_time_dimension: reservation_date
+        expr: reservation_id
 
   - name: fct_weather
     description: >
@@ -165,34 +171,15 @@ models:
     description: >
       One row per actual reservation. This is the cleanest grain for counting
       bookings — no gap-fill rows, no available/closed slots.
-    semantic_model:
-      enabled: true
     columns:
       - name: reservation_id
         description: Synthetic surrogate key for the reservation. Primary key.
         data_tests:
           - unique
           - not_null
-        entity:
-          type: primary
-          name: reservation
       - name: reservation_date
         description: Calendar date on which the reservation takes place.
-        granularity: day
-        dimension:
-          type: time
       - name: court_number
         description: Tennis court number (1–5).
-        dimension:
-          type: categorical
       - name: reservation_type
         description: Category of the reservation as provided by the source system.
-        dimension:
-          type: categorical
-    metrics:
-      - name: total_reservations
-        description: Total number of actual court reservations.
-        type: simple
-        agg: count
-        agg_time_dimension: reservation_date
-        expr: reservation_id
