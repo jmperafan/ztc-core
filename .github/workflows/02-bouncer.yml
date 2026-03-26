@@ -61,7 +61,7 @@ jobs:
 
       - name: Run dbt Bouncer
         if: steps.fetch-manifest.outputs.skip != 'true'
-        uses: godatadriven/dbt-bouncer@v0
+        uses: godatadriven/dbt-bouncer@v3
         with:
           config-file: ./dbt-bouncer.yml
           send-pr-comment: "true"

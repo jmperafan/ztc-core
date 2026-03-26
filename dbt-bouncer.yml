@@ -9,19 +9,19 @@ manifest_checks:
   # a model lives and what it does — without opening the file or checking the
   # folder path. It also makes lineage graphs readable at a glance.
   # --------------------------------------------------------------------------
-  - name: check_model_name_by_folder
+  - name: check_model_names
     include: ^models/staging
     model_name_pattern: ^stg_
 
-  - name: check_model_name_by_folder
+  - name: check_model_names
     include: ^models/intermediate
     model_name_pattern: ^(int_|bridge_)
 
-  - name: check_model_name_by_folder
+  - name: check_model_names
     include: ^models/core
     model_name_pattern: ^(fct_|dim_|bridge_)
 
-  - name: check_model_name_by_folder
+  - name: check_model_names
     include: ^models/marts
     model_name_pattern: ^(fct_|dim_|python_)
 
