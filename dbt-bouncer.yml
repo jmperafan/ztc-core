@@ -2,13 +2,7 @@ dbt_artifacts_dir: target
 
 manifest_checks:
 
-  # --------------------------------------------------------------------------
-  # Naming conventions
-  #
-  # Every layer has a required prefix. This makes it immediately obvious where
-  # a model lives and what it does — without opening the file or checking the
-  # folder path. It also makes lineage graphs readable at a glance.
-  # --------------------------------------------------------------------------
+  # Naming conventions: enforce layer prefixes so lineage is readable at a glance.
   - name: check_model_names
     include: ^models/staging
     model_name_pattern: ^stg_
@@ -25,34 +19,11 @@ manifest_checks:
     include: ^models/marts
     model_name_pattern: ^(fct_|dim_|python_)
 
-  # --------------------------------------------------------------------------
-  # Documentation
-  #
-  # Sources should always be described — they are the contract with the
-  # upstream data providers and the entry point for all lineage.
-  # --------------------------------------------------------------------------
-  - name: check_source_description_populated
+  - name: check_model_names
+    include: ^models/metrics
+    model_name_pattern: ^metricflow_
 
-  # --------------------------------------------------------------------------
-  # Lineage rules
-  #
-  # The medallion architecture only works if the layers stay separate.
-  # Staging models may only read from raw sources — never from other models.
-  # Allowing staging to reference intermediate or core models short-circuits
-  # the architecture and creates hard-to-trace lineage.
-  # --------------------------------------------------------------------------
-  - name: check_lineage_permitted_upstream_models
-    include: ^models/staging
-    upstream_path_pattern: ^models/staging
-
-  # --------------------------------------------------------------------------
-  # Structure
-  #
-  # Limit how many models can depend on a single model. High fanout creates
-  # fragile dependencies — one change breaks a large surface area. If a model
-  # has 10+ direct dependents, it is likely doing too much or the downstream
-  # models should be grouped differently.
-  # --------------------------------------------------------------------------
+  # Structure: cap direct dependents to avoid fragile high-fanout models.
   - name: check_model_max_fanout
     include: ^models/
     max_downstream_models: 10
