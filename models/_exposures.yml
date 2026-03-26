@@ -12,7 +12,7 @@ exposures:
       - ref('fct_court_usage')
       - ref('fct_weather')
       - ref('fct_reservations')
-      - ref('dim_members')
+      - ref('dim_members_anonimized')
     owner:
       name: ZTC Analytics
       email: analytics@ztc.nl
@@ -30,7 +30,7 @@ exposures:
       - ref('fct_court_usage')
       - ref('fct_weather')
       - ref('fct_reservations')
-      - ref('dim_members')
+      - ref('dim_members_anonimized')
     owner:
       name: ZTC Analytics
       email: analytics@ztc.nl
