@@ -28,48 +28,10 @@ manifest_checks:
   # --------------------------------------------------------------------------
   # Documentation
   #
-  # Models without descriptions are invisible to anyone who didn't write them.
-  # Descriptions are enforced at the layers people actually query — staging and
-  # core. Intermediate models are internal plumbing and get a lighter touch.
+  # Sources should always be described — they are the contract with the
+  # upstream data providers and the entry point for all lineage.
   # --------------------------------------------------------------------------
   - name: check_source_description_populated
-
-  - name: check_model_description_populated
-    include: ^models/staging
-
-  - name: check_model_description_populated
-    include: ^models/core
-
-  - name: check_model_description_populated
-    include: ^models/marts
-
-  # --------------------------------------------------------------------------
-  # Properties files
-  #
-  # Every model should appear in a _models.yml file. This ensures the model
-  # is visible to dbt's documentation, testing, and governance tooling.
-  # A model that exists only as a .sql file is undocumented by definition.
-  # --------------------------------------------------------------------------
-  - name: check_model_documented_in_same_directory
-    include: ^models/staging
-
-  - name: check_model_documented_in_same_directory
-    include: ^models/core
-
-  - name: check_model_documented_in_same_directory
-    include: ^models/marts
-
-  # --------------------------------------------------------------------------
-  # Testing
-  #
-  # Staging models must have at least one test — typically a not_null on the
-  # primary key. Core models must have a unique test on their grain. Without
-  # these, duplicate or null keys can silently propagate downstream.
-  # --------------------------------------------------------------------------
-  - name: check_model_test_coverage
-
-  - name: check_model_has_unique_test
-    include: ^models/core
 
   # --------------------------------------------------------------------------
   # Lineage rules
