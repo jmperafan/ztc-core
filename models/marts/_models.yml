@@ -7,6 +7,8 @@ models:
     columns:
       - name: court_number
         description: Tennis court number (1–5).
+        data_tests:
+          - not_null
       - name: reservation_date
         description: Calendar date of the slot.
       - name: start_time
