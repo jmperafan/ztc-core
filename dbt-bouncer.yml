@@ -13,7 +13,7 @@ manifest_checks:
 
   - name: check_model_names
     include: ^models/core
-    model_name_pattern: ^(fct_|dim_|bridge_)
+    model_name_pattern: ^(fct_|dim_|bridge_|metricflow_)
 
   - name: check_model_names
     include: ^models/marts
