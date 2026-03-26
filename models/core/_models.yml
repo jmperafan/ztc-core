@@ -45,7 +45,7 @@ models:
           type: primary
           name: court_usage_slot
       - name: reservation_id
-        data_type: varchar
+        data_type: number
         description: >
           ID of the original reservation for actual bookings.
           NULL for synthetic gap-fill and closed-hour rows.

@@ -59,13 +59,6 @@ final AS (
         *,
         {{ is_winter_break("reservation_date") }} AS is_winter_break
     FROM unioned
-    -- Overlapping reservations in the source (same court/date/start_time) produce
-    -- duplicate slot_keys. Keep one row per slot, preferring actual bookings
-    -- (reservation_id not null) over gap-fill rows.
-    QUALIFY ROW_NUMBER() OVER (
-        PARTITION BY court_number, reservation_date, start_time
-        ORDER BY reservation_id NULLS LAST
-    ) = 1
 )
 
 SELECT * FROM final
