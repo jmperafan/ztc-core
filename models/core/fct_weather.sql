@@ -1,5 +1,5 @@
 WITH source AS (
-    SELECT * FROM {{ ref('stg_weather_data') }}
+    SELECT * FROM {{ ref('int_weather_data') }}
 ),
 
 final AS (

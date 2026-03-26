@@ -18,7 +18,8 @@ def load_data(dbt) -> pl.DataFrame:
     return (
         reservations
         .join(bridge, on="RESERVATION_ID")
-        .join(members.select("MEMBER_ID"), on="MEMBER_ID")
+        .with_columns(pl.col("MEMBER_ID").cast(pl.Int64))
+        .join(members.select(pl.col("MEMBER_ID").cast(pl.Int64)), on="MEMBER_ID")
     )
 
 def engineer_features(df: pl.DataFrame) -> pl.DataFrame:
@@ -71,12 +72,12 @@ def model(dbt, session):
         tags=["python", "ml", "members"],
     )
 
-    return session.create_dataframe(
+    df = (
         load_data(dbt)
         .pipe(engineer_features)
         .pipe(cluster)
         .pipe(label_segments)
         .select(["MEMBER_ID", "segment", "segment_label", *FEATURE_COLS])
-        .rename({"MEMBER_ID": "member_id"})
-        .to_pandas()
+        .rename({col: col.upper() for col in ["MEMBER_ID", "segment", "segment_label", *FEATURE_COLS]})
     )
+    return session.create_dataframe(df.to_pandas())

@@ -28,7 +28,6 @@ def model(dbt, session):
             pl.col("DURATION_IN_MINS").std().alias("std_duration_mins"),
             pl.len().alias("total_reservations"),
         )
-        .rename({"COURT_NUMBER": "court_number"})
     )
 
     # 4. RETURN

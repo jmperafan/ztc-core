@@ -117,7 +117,7 @@ def model(dbt, session):
             .alias("predicted_utilization_rate")
         )
         .select(
-            pl.col("COURT_NUMBER").alias("court_number"),
+            pl.col("COURT_NUMBER"),
             "forecast_date",
             "predicted_utilization_rate",
             "day_of_week",
@@ -127,4 +127,5 @@ def model(dbt, session):
         )
     )
 
+    result = result.rename({col: col.upper() for col in result.columns})
     return session.create_dataframe(result.to_pandas())

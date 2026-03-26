@@ -1,5 +1,10 @@
 WITH reservations AS (
-    -- One row per reservation
+    -- One row per reservation, limited to operating hours and deduplicated to remove
+    -- overlapping bookings. Overlaps break the gap-fill logic: the LEAD window only
+    -- looks at the next start_time, so a reservation that starts inside an existing
+    -- one causes the gap after the first booking to be miscalculated.
+    -- We keep the greedy non-overlapping set: a reservation is kept only if its
+    -- start_time is >= the latest end_time of all prior reservations on that court/date.
     SELECT
         reservation_id,
         court_number,
@@ -9,6 +14,17 @@ WITH reservations AS (
         reservation_type,
         event_description
     FROM {{ ref('fct_reservations') }}
+    WHERE start_time >= {{ var('opening_time') }}
+      AND end_time <= {{ var('closing_time') }}
+      AND end_time > start_time
+    QUALIFY start_time >= COALESCE(
+        MAX(end_time) OVER (
+            PARTITION BY court_number, reservation_date
+            ORDER BY start_time
+            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+        ),
+        start_time
+    )
 ),
 
 window_function AS (

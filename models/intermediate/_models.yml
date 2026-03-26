@@ -1,4 +1,28 @@
 models:
+  - name: int_weather_data
+    description: >
+      Deduplicated weather observations. Resolves duplicate datetime values from the
+      source system by keeping the first record per hour. This is the canonical
+      weather grain used by fct_weather.
+    columns:
+      - name: datetime
+        description: Timestamp of the observation (hourly). Primary key.
+        data_tests:
+          - unique
+          - not_null
+
+  - name: int_club_members
+    description: >
+      Deduplicated club members. Resolves duplicate clublidnummer values from the
+      source system by keeping the most recently joined record per member_id.
+      This is the canonical member grain used by dim_members.
+    columns:
+      - name: member_id
+        description: Unique club membership number. Primary key.
+        data_tests:
+          - unique
+          - not_null
+
   - name: bridge_member_reservations
     description: >
       Bridge table linking reservations to members. Filters out reservations with

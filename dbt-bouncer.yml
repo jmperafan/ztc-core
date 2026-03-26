@@ -4,6 +4,10 @@ manifest_checks:
 
   # --------------------------------------------------------------------------
   # Naming conventions
+  #
+  # Every layer has a required prefix. This makes it immediately obvious where
+  # a model lives and what it does — without opening the file or checking the
+  # folder path. It also makes lineage graphs readable at a glance.
   # --------------------------------------------------------------------------
   - name: check_model_name_by_folder
     include: ^models/staging
@@ -11,7 +15,7 @@ manifest_checks:
 
   - name: check_model_name_by_folder
     include: ^models/intermediate
-    model_name_pattern: ^int_
+    model_name_pattern: ^(int_|bridge_)
 
   - name: check_model_name_by_folder
     include: ^models/core
@@ -19,21 +23,75 @@ manifest_checks:
 
   - name: check_model_name_by_folder
     include: ^models/marts
-    model_name_pattern: ^(fct_|dim_)
+    model_name_pattern: ^(fct_|dim_|python_)
 
   # --------------------------------------------------------------------------
   # Documentation
+  #
+  # Models without descriptions are invisible to anyone who didn't write them.
+  # Descriptions are enforced at the layers people actually query — staging and
+  # core. Intermediate models are internal plumbing and get a lighter touch.
   # --------------------------------------------------------------------------
   - name: check_source_description_populated
 
+  - name: check_model_description_populated
+    include: ^models/staging
+
+  - name: check_model_description_populated
+    include: ^models/core
+
+  - name: check_model_description_populated
+    include: ^models/marts
+
+  # --------------------------------------------------------------------------
+  # Properties files
+  #
+  # Every model should appear in a _models.yml file. This ensures the model
+  # is visible to dbt's documentation, testing, and governance tooling.
+  # A model that exists only as a .sql file is undocumented by definition.
+  # --------------------------------------------------------------------------
+  - name: check_model_has_properties_file
+    include: ^models/staging
+
+  - name: check_model_has_properties_file
+    include: ^models/core
+
+  - name: check_model_has_properties_file
+    include: ^models/marts
+
   # --------------------------------------------------------------------------
   # Testing
+  #
+  # Staging models must have at least one test — typically a not_null on the
+  # primary key. Core models must have a unique test on their grain. Without
+  # these, duplicate or null keys can silently propagate downstream.
   # --------------------------------------------------------------------------
+  - name: check_model_has_tests
+    include: ^models/staging
+    min_number_of_tests: 1
+
   - name: check_model_has_unique_test
     include: ^models/core
 
   # --------------------------------------------------------------------------
+  # Lineage rules
+  #
+  # The medallion architecture only works if the layers stay separate.
+  # Staging models may only read from raw sources — never from other models.
+  # Allowing staging to reference intermediate or core models short-circuits
+  # the architecture and creates hard-to-trace lineage.
+  # --------------------------------------------------------------------------
+  - name: check_model_access_upstream_layer
+    include: ^models/staging
+    upstream_path_pattern: ^models/staging
+
+  # --------------------------------------------------------------------------
   # Structure
+  #
+  # Limit how many models can depend on a single model. High fanout creates
+  # fragile dependencies — one change breaks a large surface area. If a model
+  # has 10+ direct dependents, it is likely doing too much or the downstream
+  # models should be grouped differently.
   # --------------------------------------------------------------------------
   - name: check_model_max_fanout
     include: ^models/
