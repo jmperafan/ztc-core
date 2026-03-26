@@ -20,14 +20,11 @@ def model(dbt, session):
     # 3. TRANSFORM
     # This is where you do things SQL struggles with, like median.
     # Polars .agg() takes a list of named expressions — one per output column.
-    stats = (
-        df.group_by("COURT_NUMBER")
-        .agg(
-            pl.col("DURATION_IN_MINS").mean().alias("avg_duration_mins"),
-            pl.col("DURATION_IN_MINS").median().alias("median_duration_mins"),
-            pl.col("DURATION_IN_MINS").std().alias("std_duration_mins"),
-            pl.len().alias("total_reservations"),
-        )
+    stats = df.group_by("COURT_NUMBER").agg(
+        pl.col("DURATION_IN_MINS").mean().alias("avg_duration_mins"),
+        pl.col("DURATION_IN_MINS").median().alias("median_duration_mins"),
+        pl.col("DURATION_IN_MINS").std().alias("std_duration_mins"),
+        pl.len().alias("total_reservations"),
     )
 
     # 4. RETURN

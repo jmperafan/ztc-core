@@ -14,9 +14,10 @@ WITH reservations AS (
         reservation_type,
         event_description
     FROM {{ ref('fct_reservations') }}
-    WHERE start_time >= {{ var('opening_time') }}
-      AND end_time <= {{ var('closing_time') }}
-      AND end_time > start_time
+    WHERE
+        start_time >= {{ var('opening_time') }}
+        AND end_time <= {{ var('closing_time') }}
+        AND end_time > start_time
     QUALIFY start_time >= COALESCE(
         MAX(end_time) OVER (
             PARTITION BY court_number, reservation_date
@@ -33,7 +34,7 @@ window_function AS (
         reservation_date,
         start_time,
         end_time,
-        lead(start_time, 1) OVER (
+        LEAD(start_time, 1) OVER (
             PARTITION BY reservation_date, court_number
             ORDER BY start_time
         ) AS lead
@@ -61,12 +62,12 @@ first_hour AS (
         court_number,
         reservation_date,
         {{ var('opening_time') }} AS start_time,
-        min(start_time) AS end_time,
+        MIN(start_time) AS end_time,
         'Beschikbaar' AS reservation_type,
         'Club niet open' AS event_description
     FROM reservations
     GROUP BY court_number, reservation_date
-    HAVING min(start_time) != {{ var("opening_time") }}
+    HAVING MIN(start_time) != {{ var("opening_time") }}
 ),
 
 last_hour AS (
@@ -75,13 +76,13 @@ last_hour AS (
         NULL AS reservation_id,
         court_number,
         reservation_date,
-        max(end_time) AS start_time,
+        MAX(end_time) AS start_time,
         {{ var('closing_time') }} AS end_time,
         'Beschikbaar' AS reservation_type,
         'Club niet open' AS event_description
     FROM reservations
     GROUP BY court_number, reservation_date
-    HAVING max(end_time) != {{ var('closing_time') }}
+    HAVING MAX(end_time) != {{ var('closing_time') }}
 ),
 
 empty_days AS (

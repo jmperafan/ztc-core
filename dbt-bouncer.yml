@@ -9,19 +9,19 @@ manifest_checks:
   # a model lives and what it does — without opening the file or checking the
   # folder path. It also makes lineage graphs readable at a glance.
   # --------------------------------------------------------------------------
-  - name: check_model_name_by_folder
+  - name: check_model_names
     include: ^models/staging
     model_name_pattern: ^stg_
 
-  - name: check_model_name_by_folder
+  - name: check_model_names
     include: ^models/intermediate
     model_name_pattern: ^(int_|bridge_)
 
-  - name: check_model_name_by_folder
+  - name: check_model_names
     include: ^models/core
     model_name_pattern: ^(fct_|dim_|bridge_)
 
-  - name: check_model_name_by_folder
+  - name: check_model_names
     include: ^models/marts
     model_name_pattern: ^(fct_|dim_|python_)
 
@@ -50,13 +50,13 @@ manifest_checks:
   # is visible to dbt's documentation, testing, and governance tooling.
   # A model that exists only as a .sql file is undocumented by definition.
   # --------------------------------------------------------------------------
-  - name: check_model_has_properties_file
+  - name: check_model_documented_in_same_directory
     include: ^models/staging
 
-  - name: check_model_has_properties_file
+  - name: check_model_documented_in_same_directory
     include: ^models/core
 
-  - name: check_model_has_properties_file
+  - name: check_model_documented_in_same_directory
     include: ^models/marts
 
   # --------------------------------------------------------------------------
@@ -66,7 +66,7 @@ manifest_checks:
   # primary key. Core models must have a unique test on their grain. Without
   # these, duplicate or null keys can silently propagate downstream.
   # --------------------------------------------------------------------------
-  - name: check_model_has_tests
+  - name: check_model_test_coverage
     include: ^models/staging
     min_number_of_tests: 1
 
@@ -81,7 +81,7 @@ manifest_checks:
   # Allowing staging to reference intermediate or core models short-circuits
   # the architecture and creates hard-to-trace lineage.
   # --------------------------------------------------------------------------
-  - name: check_model_access_upstream_layer
+  - name: check_lineage_permitted_upstream_models
     include: ^models/staging
     upstream_path_pattern: ^models/staging
 

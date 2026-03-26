@@ -50,11 +50,11 @@ unioned AS (
 final AS (
     SELECT
         CONCAT(
-            CAST(court_number AS VARCHAR),
+            court_number::varchar,
             '_',
-            CAST(reservation_date AS VARCHAR),
+            reservation_date::varchar,
             '_',
-            CAST(start_time AS VARCHAR)
+            start_time::varchar
         ) AS slot_key,
         *,
         {{ is_winter_break("reservation_date") }} AS is_winter_break
