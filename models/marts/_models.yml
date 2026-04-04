@@ -1,4 +1,75 @@
 models:
+  - name: fct_daily_court_stats
+    description: >
+      Daily aggregation of court usage per court, built as an incremental model
+      (delete+insert strategy). One row per court × date combination, covering
+      non-winter-break days only. Use this model for day-level utilization
+      reporting and trend analysis.
+    columns:
+      - name: daily_court_key
+        description: Surrogate key — CONCAT(court_number, '_', reservation_date). Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: court_number
+        description: Tennis court number (1–5).
+        data_tests:
+          - not_null
+      - name: reservation_date
+        description: Calendar date of the aggregated slots.
+        data_tests:
+          - not_null
+      - name: booked_slots
+        description: Number of minute-level slots marked as booked (Gereserveerd).
+      - name: available_slots
+        description: Number of minute-level slots marked as available (Beschikbaar).
+      - name: total_playable_slots
+        description: Total booked + available slots (excludes closed hours).
+      - name: booked_minutes
+        description: Total minutes booked on this court on this date.
+      - name: available_minutes
+        description: Total playable minutes on this court on this date.
+      - name: utilization_pct
+        description: >
+          Share of playable minutes that were booked, expressed as a percentage
+          (booked_slots / total_playable_slots × 100). NULL if no playable slots.
+
+  - name: fct_hourly_weather_usage
+    description: >
+      Hourly court usage enriched with weather observations, built as an
+      incremental model (merge strategy). One row per court × date × hour
+      combination. The merge strategy ensures that weather corrections arriving
+      after the initial load are applied automatically on the next run.
+    columns:
+      - name: reservation_date
+        description: Calendar date of the hour.
+        data_tests:
+          - not_null
+      - name: start_hour
+        description: Hour of day (0–23) derived from start_time.
+        data_tests:
+          - not_null
+      - name: court_number
+        description: Tennis court number (1–5).
+        data_tests:
+          - not_null
+      - name: booked_slots
+        description: Number of minute-level slots marked as booked in this hour.
+      - name: available_slots
+        description: Number of minute-level slots available in this hour.
+      - name: utilization_pct
+        description: Share of playable slots in this hour that were booked (%).
+      - name: temperature
+        description: Hourly temperature in degrees Celsius from weather data.
+      - name: precipitation
+        description: Hourly precipitation in mm.
+      - name: wind_speed
+        description: Hourly wind speed in km/h.
+      - name: ideal_weather
+        description: >
+          Boolean flag from the tennis_weather macro: TRUE when temperature is
+          10–35 °C, precipitation = 0, and wind speed ≤ 20 km/h.
+
   - name: fct_hourly_usage
     description: >
       One row per court slot filtered to non-winter-break days. Adds start_hour
