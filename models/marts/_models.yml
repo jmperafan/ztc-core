@@ -1,4 +1,54 @@
 models:
+  - name: fct_reservation_events
+    description: >
+      One row per actual court booking, enriched with member demographics.
+      Built as a microbatch incremental model (batch_size=day, lookback=3) —
+      dbt processes one day at a time and automatically injects the time-window
+      filter; no is_incremental() filter is needed in the SQL. Use this model
+      for booking-level analysis sliced by member profile, day-of-week, or hour.
+    columns:
+      - name: reservation_id
+        description: Surrogate key for the reservation. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: reservation_date
+        description: >
+          Calendar date of the booking. This is the event_time column used by
+          the microbatch strategy to partition runs.
+        data_tests:
+          - not_null
+      - name: court_number
+        description: Tennis court number (1–5).
+        data_tests:
+          - not_null
+      - name: start_time
+        description: Start time of the reservation (TIME, 24-hour).
+      - name: end_time
+        description: End time of the reservation (TIME, 24-hour).
+      - name: duration_in_mins
+        description: Duration of the reservation in minutes.
+      - name: day_of_week
+        description: Day-of-week integer for the reservation date (1 = Sunday, 7 = Saturday in Snowflake).
+      - name: day_of_week_name
+        description: Full day name (e.g. Monday) for the reservation date.
+      - name: start_hour
+        description: Hour component of start_time (0–23).
+      - name: member_id
+        description: Foreign key to dim_members. NULL for guest bookings not linked to a member.
+      - name: gender
+        description: Member's gender. NULL for unlinked bookings.
+      - name: age_group
+        description: Member's age group bucket. NULL for unlinked bookings.
+      - name: city
+        description: Member's city of residence. NULL for unlinked bookings.
+      - name: current_type_of_membership
+        description: Name of the member's active membership tier. NULL for unlinked bookings.
+      - name: is_club_member
+        description: True if the member holds an active club membership.
+      - name: is_knltb_member
+        description: True if the member is registered with the national tennis federation.
+
   - name: fct_daily_court_stats
     description: >
       Daily aggregation of court usage per court, built as an incremental model
