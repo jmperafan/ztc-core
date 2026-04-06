@@ -4,7 +4,7 @@ WITH source AS (
 
 renamed AS (
     SELECT
-        datetime,
+        TRY_TO_TIMESTAMP_NTZ(datetime) AS datetime,
         temp AS temperature,
         feelslike AS thermal_sensation,
         dew,

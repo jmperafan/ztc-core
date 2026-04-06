@@ -7,7 +7,7 @@
     materialized='incremental',
     incremental_strategy='microbatch',
     event_time='reservation_date',
-    batch_size='day',
+    batch_size='month',
     lookback=3,
     begin='2022-01-01',
     on_schema_change='fail'

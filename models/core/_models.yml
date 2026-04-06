@@ -40,12 +40,12 @@ models:
           - unique
           - not_null
       - name: reservation_id
-        data_type: number
+        data_type: NUMBER(18, 0)
         description: >
           ID of the original reservation for actual bookings.
           NULL for synthetic gap-fill and closed-hour rows.
       - name: court_number
-        data_type: number
+        data_type: NUMBER(2, 0)
         description: Tennis court number (1–5).
       - name: reservation_date
         data_type: date
@@ -66,7 +66,7 @@ models:
         data_type: varchar
         description: Description of the event. "Niet geboekt" for available gaps; NULL for closed hours.
       - name: duration_in_mins
-        data_type: number
+        data_type: NUMBER(10, 0)
         description: Duration of the slot in minutes.
       - name: is_winter_break
         data_type: boolean
