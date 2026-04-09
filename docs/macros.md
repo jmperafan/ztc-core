@@ -35,7 +35,7 @@ dbt discovers all macros in `macros/` automatically. No import or registration i
 
 ## Macros in this project
 
-This project has five macros, each encapsulating a specific business rule.
+This project has six macros, each encapsulating a specific business rule.
 
 ---
 
@@ -177,6 +177,69 @@ Returns a boolean condition identifying whether a date falls within a known wint
 ```
 
 **Why it exists:** Courts are closed during winter breaks, creating large gaps in court usage data. Naively calculating utilisation over these periods would severely understate demand. The `is_winter_break` flag lets downstream models and metrics exclude these periods. The exact date ranges are documented in the macro itself, making them easy to update when new seasons are added.
+
+---
+
+### `generate_schema_name(custom_schema_name, node)`
+
+**File:** `macros/generate_schema_name.sql`
+
+Overrides dbt's built-in schema name generation to separate production schemas from developer namespaces.
+
+```sql
+{% macro generate_schema_name(custom_schema_name, node) -%}
+
+    {%- set default_schema = target.schema -%}
+
+    {%- if custom_schema_name is none -%}
+
+        {{ default_schema }}
+
+    {%- elif target.name == 'prod' -%}
+
+        {{ custom_schema_name | trim }}
+
+    {%- else -%}
+
+        {{ default_schema }}_{{ custom_schema_name | trim }}
+
+    {%- endif -%}
+
+{%- endmacro %}
+```
+
+**Behaviour by environment:**
+
+| Environment | `target.name` | `+schema` config | Resolved schema |
+| --- | --- | --- | --- |
+| Production | `prod` | `staging` | `staging` |
+| Production | `prod` | `core` | `core` |
+| Development | `dbt_jperafan` | `staging` | `dbt_jperafan_staging` |
+| Development | `dbt_jperafan` | `core` | `dbt_jperafan_core` |
+| Any | any | *(none)* | `<target.schema>` |
+
+**How `+schema` is wired up:**
+
+Each model layer in `dbt_project.yml` declares its own custom schema:
+
+```yaml
+models:
+  zuilense_tennis_club:
+    staging:
+      +schema: staging
+    intermediate:
+      +schema: intermediate
+    core:
+      +schema: core
+    marts:
+      +schema: marts
+    metrics:
+      +schema: metrics
+```
+
+**Why it exists:** Without this override, dbt's default behaviour always concatenates the target schema with the custom schema — even in production. That means production models land in `prod_staging` and `prod_core` instead of `staging` and `core`. This macro corrects that: production gets clean, predictable schema names while development runs are isolated under each developer's namespace (e.g. `dbt_jperafan_core`), preventing dev runs from touching production tables.
+
+> **Note:** `generate_schema_name` is a special macro — it overrides a dbt built-in rather than being called with `{{ }}` in a model. dbt discovers and invokes it automatically during compilation.
 
 ---
 

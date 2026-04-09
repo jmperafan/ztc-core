@@ -42,6 +42,21 @@ macros:
         type: string
         description: The column containing a 12-hour time string with an am/pm suffix.
 
+  - name: generate_schema_name
+    description: >
+      Overrides dbt's built-in schema name generation. In production (target.name == 'prod'),
+      models with a custom schema are placed directly into that schema (e.g. `staging`, `core`,
+      `marts`). In all other environments, the custom schema is prefixed with the target schema
+      to namespace runs by developer (e.g. `dbt_jperafan_staging`). Models without a custom
+      schema always use the target schema as-is.
+    arguments:
+      - name: custom_schema_name
+        type: string
+        description: The custom schema from the model config (+schema). Null if not set.
+      - name: node
+        type: node
+        description: The dbt node object for the model being compiled.
+
   - name: is_winter_break
     description: >
       Returns a boolean SQL condition that evaluates to true when a date falls within
