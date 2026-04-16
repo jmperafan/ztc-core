@@ -50,11 +50,7 @@ models:
         description: True if the member is registered with the national tennis federation.
 
   - name: fct_daily_court_stats
-    description: >
-      Daily aggregation of court usage per court, built as an incremental model
-      (delete+insert strategy). One row per court × date combination, covering
-      non-winter-break days only. Use this model for day-level utilization
-      reporting and trend analysis.
+    description: "{{ doc('fct_daily_court_stats') }}"
     columns:
       - name: daily_court_key
         description: Surrogate key — CONCAT(court_number, '_', reservation_date). Primary key.
@@ -80,16 +76,10 @@ models:
       - name: available_minutes
         description: Total playable minutes on this court on this date.
       - name: utilization_pct
-        description: >
-          Share of playable minutes that were booked, expressed as a percentage
-          (booked_slots / total_playable_slots × 100). NULL if no playable slots.
+        description: "{{ doc('utilization_pct') }}"
 
   - name: fct_hourly_weather_usage
-    description: >
-      Hourly court usage enriched with weather observations, built as an
-      incremental model (merge strategy). One row per court × date × hour
-      combination. The merge strategy ensures that weather corrections arriving
-      after the initial load are applied automatically on the next run.
+    description: "{{ doc('fct_hourly_weather_usage') }}"
     columns:
       - name: reservation_date
         description: Calendar date of the hour.
