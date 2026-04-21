@@ -53,8 +53,8 @@ macros:
       - name: custom_schema_name
         type: string
         description: The custom schema from the model config (+schema). Null if not set.
-      - name: node
-        type: node
+      - name: node_obj
+        type: any
         description: The dbt node object for the model being compiled.
 
   - name: is_winter_break
@@ -63,6 +63,6 @@ macros:
       a known ZTC winter break period. Winter breaks are the periods when outdoor courts
       are closed. Covers the 2022 and 2022/2023 winter breaks.
     arguments:
-      - name: date
-        type: date
+      - name: date_expr
+        type: string
         description: The date column to evaluate.
