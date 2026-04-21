@@ -19,7 +19,19 @@
 -- (e.g. WHERE reservation_date >= '2024-11-01' AND reservation_date < '2024-11-02')
 -- and replaces only the rows for that window in the target table.
 
-WITH reservations AS (
+WITH fct_reservations AS (
+    SELECT * FROM {{ ref('fct_reservations') }}
+),
+
+bridge_member_reservations AS (
+    SELECT * FROM {{ ref('bridge_member_reservations') }}
+),
+
+dim_members_anonimized AS (
+    SELECT * FROM {{ ref('dim_members_anonimized') }}
+),
+
+reservations AS (
     SELECT
         reservation_id,
         reservation_date,
@@ -32,13 +44,13 @@ WITH reservations AS (
         DAYOFWEEK(reservation_date)     AS day_of_week,
         DAYNAME(reservation_date)       AS day_of_week_name,
         HOUR(start_time)                AS start_hour
-    FROM {{ ref('fct_reservations') }}
+    FROM fct_reservations
     WHERE reservation_type = 'Gereserveerd'  -- actual bookings only, no gap-fill rows
 ),
 
 member_bridge AS (
     SELECT reservation_id, member_id
-    FROM {{ ref('bridge_member_reservations') }}
+    FROM bridge_member_reservations
 ),
 
 member_profiles AS (
@@ -50,26 +62,30 @@ member_profiles AS (
         current_type_of_membership,
         is_club_member,
         is_knltb_member
-    FROM {{ ref('dim_members_anonimized') }}
+    FROM dim_members_anonimized
+),
+
+final AS (
+    SELECT
+        r.reservation_id,
+        r.reservation_date,
+        r.court_number,
+        r.start_time,
+        r.end_time,
+        r.duration_in_mins,
+        r.day_of_week,
+        r.day_of_week_name,
+        r.start_hour,
+        b.member_id,
+        p.gender,
+        p.age_group,
+        p.city,
+        p.current_type_of_membership,
+        p.is_club_member,
+        p.is_knltb_member
+    FROM reservations r
+    LEFT JOIN member_bridge b  ON r.reservation_id = b.reservation_id
+    LEFT JOIN member_profiles p ON b.member_id      = p.member_id
 )
 
-SELECT
-    r.reservation_id,
-    r.reservation_date,
-    r.court_number,
-    r.start_time,
-    r.end_time,
-    r.duration_in_mins,
-    r.day_of_week,
-    r.day_of_week_name,
-    r.start_hour,
-    b.member_id,
-    p.gender,
-    p.age_group,
-    p.city,
-    p.current_type_of_membership,
-    p.is_club_member,
-    p.is_knltb_member
-FROM reservations r
-LEFT JOIN member_bridge b  ON r.reservation_id = b.reservation_id
-LEFT JOIN member_profiles p ON b.member_id      = p.member_id
+SELECT * FROM final

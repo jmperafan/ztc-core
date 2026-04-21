@@ -27,7 +27,23 @@
   )
 }}
 
-with reservations as (
+with fct_reservations as (
+    select * from {{ ref('fct_reservations') }}
+),
+
+bridge_member_reservations as (
+    select * from {{ ref('bridge_member_reservations') }}
+),
+
+dim_members_anonimized as (
+    select * from {{ ref('dim_members_anonimized') }}
+),
+
+fct_weather as (
+    select * from {{ ref('fct_weather') }}
+),
+
+reservations as (
 
     select
         reservation_id,
@@ -41,7 +57,7 @@ with reservations as (
         dayofweek(reservation_date)     as day_of_week,
         dayname(reservation_date)       as day_of_week_name,
         hour(start_time)                as start_hour
-    from {{ ref('fct_reservations') }}
+    from fct_reservations
     where reservation_type = 'Gereserveerd'
 
     {% if is_incremental() %}
@@ -55,7 +71,7 @@ with reservations as (
 
 member_bridge as (
     select reservation_id, member_id
-    from {{ ref('bridge_member_reservations') }}
+    from bridge_member_reservations
 ),
 
 member_profiles as (
@@ -67,7 +83,7 @@ member_profiles as (
         current_type_of_membership,
         is_club_member,
         is_knltb_member
-    from {{ ref('dim_members_anonimized') }}
+    from dim_members_anonimized
 ),
 
 weather as (
@@ -78,7 +94,7 @@ weather as (
         precipitation,
         wind_speed,
         ideal_weather
-    from {{ ref('fct_weather') }}
+    from fct_weather
 ),
 
 final as (

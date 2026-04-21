@@ -1,6 +1,5 @@
 WITH source AS (
     SELECT * FROM {{ ref('fct_court_usage') }}
-    WHERE is_winter_break = FALSE
 ),
 
 hourly AS (
@@ -13,6 +12,7 @@ hourly AS (
         event_description,
         HOUR(start_time) AS start_hour
     FROM source
+    WHERE is_winter_break = FALSE
 )
 
 SELECT * FROM hourly

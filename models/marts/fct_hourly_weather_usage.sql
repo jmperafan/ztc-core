@@ -7,7 +7,15 @@
   )
 }}
 
-WITH hourly_usage AS (
+WITH fct_court_usage AS (
+    SELECT * FROM {{ ref('fct_court_usage') }}
+),
+
+fct_weather AS (
+    SELECT * FROM {{ ref('fct_weather') }}
+),
+
+hourly_usage AS (
     SELECT
         reservation_date,
         HOUR(start_time)                                                 AS start_hour,
@@ -19,7 +27,7 @@ WITH hourly_usage AS (
             / NULLIF(COUNT_IF(reservation_type IN ('Gereserveerd', 'Beschikbaar')), 0),
             2
         )                                                                AS utilization_pct
-    FROM {{ ref('fct_court_usage') }}
+    FROM fct_court_usage
     WHERE
         NOT is_winter_break
         AND reservation_type != 'Gesloten'
@@ -42,21 +50,25 @@ weather AS (
         precipitation,
         wind_speed,
         ideal_weather
-    FROM {{ ref('fct_weather') }}
+    FROM fct_weather
+),
+
+final AS (
+    SELECT
+        u.reservation_date,
+        u.start_hour,
+        u.court_number,
+        u.booked_slots,
+        u.available_slots,
+        u.utilization_pct,
+        w.temperature,
+        w.precipitation,
+        w.wind_speed,
+        w.ideal_weather
+    FROM hourly_usage u
+    LEFT JOIN weather w
+        ON  u.reservation_date = w.weather_date
+        AND u.start_hour       = w.weather_hour
 )
 
-SELECT
-    u.reservation_date,
-    u.start_hour,
-    u.court_number,
-    u.booked_slots,
-    u.available_slots,
-    u.utilization_pct,
-    w.temperature,
-    w.precipitation,
-    w.wind_speed,
-    w.ideal_weather
-FROM hourly_usage u
-LEFT JOIN weather w
-    ON  u.reservation_date = w.weather_date
-    AND u.start_hour       = w.weather_hour
+SELECT * FROM final

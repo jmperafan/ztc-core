@@ -4,7 +4,12 @@ WITH RECURSIVE date_spine AS (
     SELECT dateadd('day', 1, date_key)
     FROM date_spine
     WHERE date_key < current_date()
+),
+
+final AS (
+    SELECT date_key
+    FROM date_spine
+    ORDER BY date_key DESC
 )
 
-SELECT date_key FROM date_spine
-ORDER BY date_key DESC
+SELECT * FROM final

@@ -1,4 +1,12 @@
-WITH reservations AS (
+WITH fct_reservations AS (
+    SELECT * FROM {{ ref('fct_reservations') }}
+),
+
+int_court_date_spine AS (
+    SELECT * FROM {{ ref('int_court_date_spine') }}
+),
+
+reservations AS (
     -- One row per reservation, limited to operating hours and deduplicated to remove
     -- overlapping bookings. Overlaps break the gap-fill logic: the LEAD window only
     -- looks at the next start_time, so a reservation that starts inside an existing
@@ -13,7 +21,7 @@ WITH reservations AS (
         end_time,
         reservation_type,
         event_description
-    FROM {{ ref('fct_reservations') }}
+    FROM fct_reservations
     WHERE
         start_time >= {{ var('opening_time') }}
         AND end_time <= {{ var('closing_time') }}
@@ -95,7 +103,7 @@ empty_days AS (
         {{ var('closing_time') }} AS end_time,
         'Beschikbaar' AS reservation_type,
         'Niet geboekt' AS event_description
-    FROM {{ ref('int_court_date_spine') }} AS spine
+    FROM int_court_date_spine AS spine
     LEFT JOIN reservations
         ON
             spine.reservation_date = reservations.reservation_date

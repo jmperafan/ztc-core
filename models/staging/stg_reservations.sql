@@ -28,9 +28,13 @@ renamed AS (
         beschrijving AS event_description
     FROM source
     ORDER BY court_number, reservation_start
+),
+
+final AS (
+    SELECT
+        *,
+        ROW_NUMBER() OVER (ORDER BY court_number, reservation_start) AS reservation_id
+    FROM renamed
 )
 
-SELECT
-    *,
-    ROW_NUMBER() OVER (ORDER BY court_number, reservation_start) AS reservation_id
-FROM renamed
+SELECT * FROM final
