@@ -132,6 +132,8 @@ models:
         description: Free-text description of the event or booking.
 
   - name: python_court_stats
+    config:
+      static_analysis: off
     description: >
       Introductory example of a dbt Python model. Computes descriptive statistics
       on reservation duration per court — average, median, standard deviation, and
@@ -178,6 +180,8 @@ models:
         description: True if the member is registered with the national tennis federation.
 
   - name: python_member_segments
+    config:
+      static_analysis: off
     description: >
       K-means clustering (4 segments) of club members based on their booking behaviour.
       Each row is one member with their cluster label and the five features used to
@@ -211,6 +215,8 @@ models:
         description: Number of distinct courts the member has ever booked.
 
   - name: python_demand_forecast
+    config:
+      static_analysis: off
     description: >
       30-day court utilization forecast produced by a day-of-week seasonal model with
       a recent-trend adjustment. One row per court × forecast date combination. The

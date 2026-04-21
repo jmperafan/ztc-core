@@ -23,8 +23,8 @@ reservations AS (
         event_description
     FROM fct_reservations
     WHERE
-        start_time >= {{ var('opening_time') }}
-        AND end_time <= {{ var('closing_time') }}
+        start_time >= TIME '{{ var("opening_time") }}'
+        AND end_time <= TIME '{{ var("closing_time") }}'
         AND end_time > start_time
     QUALIFY start_time >= COALESCE(
         MAX(end_time) OVER (
@@ -69,13 +69,13 @@ first_hour AS (
         NULL AS reservation_id,
         court_number,
         reservation_date,
-        {{ var('opening_time') }} AS start_time,
+        TIME '{{ var("opening_time") }}' AS start_time,
         MIN(start_time) AS end_time,
         'Beschikbaar' AS reservation_type,
         'Club niet open' AS event_description
     FROM reservations
     GROUP BY court_number, reservation_date
-    HAVING MIN(start_time) != {{ var("opening_time") }}
+    HAVING MIN(start_time) != TIME '{{ var("opening_time") }}'
 ),
 
 last_hour AS (
@@ -85,12 +85,12 @@ last_hour AS (
         court_number,
         reservation_date,
         MAX(end_time) AS start_time,
-        {{ var('closing_time') }} AS end_time,
+        TIME '{{ var("closing_time") }}' AS end_time,
         'Beschikbaar' AS reservation_type,
         'Club niet open' AS event_description
     FROM reservations
     GROUP BY court_number, reservation_date
-    HAVING MAX(end_time) != {{ var('closing_time') }}
+    HAVING MAX(end_time) != TIME '{{ var("closing_time") }}'
 ),
 
 empty_days AS (
@@ -99,8 +99,8 @@ empty_days AS (
         NULL AS reservation_id,
         spine.court_number,
         spine.reservation_date,
-        {{ var('opening_time') }} AS start_time,
-        {{ var('closing_time') }} AS end_time,
+        TIME '{{ var("opening_time") }}' AS start_time,
+        TIME '{{ var("closing_time") }}' AS end_time,
         'Beschikbaar' AS reservation_type,
         'Niet geboekt' AS event_description
     FROM int_court_date_spine AS spine

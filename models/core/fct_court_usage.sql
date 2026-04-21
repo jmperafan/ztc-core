@@ -18,7 +18,7 @@ midnight_closed_hours AS (
         NULL AS reservation_id,
         court_number,
         reservation_date,
-        {{ var('closing_time') }} AS start_time,
+        TIME '{{ var("closing_time") }}' AS start_time,
         TIME '00:00:00' AS end_time,
         'Gesloten' AS reservation_type,
         'Club niet open' AS event_description,
@@ -32,7 +32,7 @@ morning_closed_hours AS (
         court_number,
         reservation_date,
         TIME '00:00:00' AS start_time,
-        {{ var('opening_time') }} AS end_time,
+        TIME '{{ var("opening_time") }}' AS end_time,
         'Gesloten' AS reservation_type,
         'Club niet open' AS event_description,
         480 AS duration_in_mins

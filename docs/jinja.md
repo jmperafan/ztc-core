@@ -53,8 +53,8 @@ Project variables are defined in `dbt_project.yml` and accessed with `var()`:
 # dbt_project.yml
 vars:
   start_date: '2022-01-01'
-  opening_time: cast('08:00:00' as time)
-  closing_time: cast('23:00:00' as time)
+  opening_time: '08:00:00'
+  closing_time: '23:00:00'
   court_numbers: [1, 2, 3, 4, 5]
 ```
 
