@@ -83,49 +83,8 @@ models:
         owner: "analytics"
         sla:   "daily"
 
-      # ── 4. JINJA IN CONFIG ─────────────────────────────────────────────────
-      # dbt renders Jinja in +enabled in dbt_project.yml. It does NOT render
-      # Jinja in most other config keys (e.g. +tags, +schema). The only reliable
-      # place for environment-conditional tags is inside the model file itself
-      # via {{ config(tags=[...]) }}, or you use +enabled here.
-      #
-      # env_var() with the | as_bool filter is the idiomatic pattern for
-      # feature-flag enabled. The second arg to env_var() is the default
-      # when the variable is absent — no export needed for the "off" state.
-      #
-      # Toggle on:  export DBT_ENABLE_ML_MODELS=true && dbt run -s tag:ml
-      python_court_stats:
-        +enabled: "{{ env_var('DBT_ENABLE_ML_MODELS', 'false') | as_bool }}"
-        +tags: ["ml", "python"]
-
-      python_demand_forecast:
-        +enabled: "{{ env_var('DBT_ENABLE_ML_MODELS', 'false') | as_bool }}"
-        +tags: ["ml", "python"]
-
-      python_member_segments:
-        +enabled: "{{ env_var('DBT_ENABLE_ML_MODELS', 'false') | as_bool }}"
-        +tags: ["ml", "python"]
-
     # ── 3e. METRICS / MetricFlow LAYER ───────────────────────────────────────
     metrics:
       +materialized: table
       +schema: metrics
       +tags: ["metrics"]
-
-      # ── 5. ENABLED: MetricFlow time-spine models ───────────────────────────
-      # These are only needed when the Semantic Layer is active. Disabling them
-      # in dev/CI cuts build time without touching any model SQL.
-      #
-      # Toggle on:  export DBT_ENABLE_METRICS=true && dbt run -s tag:metrics
-      metricflow_time_spine:
-        +enabled: "{{ env_var('DBT_ENABLE_METRICS', 'false') | as_bool }}"
-
-      metricflow_time_spine_hour:
-        +enabled: "{{ env_var('DBT_ENABLE_METRICS', 'false') | as_bool }}"
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Snapshots
-# ──────────────────────────────────────────────────────────────────────────────
-snapshots:
-  zuilense_tennis_club:
-    +target_schema: snapshots
