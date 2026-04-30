@@ -54,9 +54,6 @@ models:
       +materialized: view
       +schema: staging
       +tags: ["staging", "raw"]
-      # +grants: Snowflake role names — no "role:" prefix (that is BigQuery syntax)
-      +grants:
-        select: ["REPORTING"]
 
     # ── 3b. INTERMEDIATE LAYER ───────────────────────────────────────────────
     intermediate:
@@ -64,7 +61,7 @@ models:
       +schema: intermediate
       +tags: ["intermediate"]
       +grants:
-        select: ["TRANSFORM"]
+        select: ["TRANSFORMER"]
 
     # ── 3c. CORE LAYER ───────────────────────────────────────────────────────
     core:
@@ -72,7 +69,7 @@ models:
       +schema: core
       +tags: ["core", "certified"]
       +grants:
-        select: ["REPORTING", "TRANSFORM"]
+        select: ["TRANSFORMER"]
       +meta:
         owner: "data-engineering"
         sla:   "daily"
@@ -82,8 +79,6 @@ models:
       +materialized: table
       +schema: marts
       +tags: ["marts"]
-      +grants:
-        select: ["REPORTING", "BI_TOOL"]
       +meta:
         owner: "analytics"
         sla:   "daily"
