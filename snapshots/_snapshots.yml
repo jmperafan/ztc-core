@@ -1,0 +1,31 @@
+snapshots:
+  - name: snap_club_members
+    description: >
+      SCD Type 2 snapshot of club member records. Captures changes to key membership
+      attributes — tier, active status, city, cancellation reason, and playing levels —
+      so that historical states can be queried as of any past date. Uses the check strategy:
+      dbt compares check_cols on each run and inserts a new row when any of them change,
+      closing the previous row by setting dbt_valid_to.
+    columns:
+      - name: member_id
+        description: Club membership number. Primary key of the source record.
+      - name: current_type_of_membership
+        description: Active membership tier at the time this snapshot row was valid.
+      - name: is_club_member
+        description: Whether the member held an active club membership during this snapshot period.
+      - name: city
+        description: Member's city of residence during this snapshot period.
+      - name: reasons_for_cancellation
+        description: Cancellation reason recorded when the member left, if applicable.
+      - name: singles_level
+        description: KNLTB singles playing strength at the time this snapshot row was valid.
+      - name: doubles_level
+        description: KNLTB doubles playing strength at the time this snapshot row was valid.
+      - name: dbt_scd_id
+        description: Surrogate key for this snapshot row (hash of unique_key + dbt_updated_at).
+      - name: dbt_valid_from
+        description: Timestamp from which this row's values were current.
+      - name: dbt_valid_to
+        description: Timestamp at which this row was superseded. NULL for the current record.
+      - name: dbt_updated_at
+        description: Timestamp when dbt last evaluated this record.

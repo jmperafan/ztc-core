@@ -30,6 +30,31 @@ models:
       One row per court-slot covering every minute of every day: actual bookings,
       available (gap-fill) slots, and closed hours. Use this model to compute
       court utilization as booked minutes divided by available minutes.
+    semantic_model:
+      enabled: true
+    metrics:
+      - name: booked_minutes
+        description: >
+          Total minutes of actual court bookings. Excludes available (Beschikbaar)
+          and closed (Gesloten) slots. Kept as a raw metric so it can be queried
+          without the winter-break filter applied at the ratio metric level.
+        type: simple
+        agg: sum
+        expr: CASE WHEN reservation_type NOT IN ('Beschikbaar', 'Gesloten') THEN duration_in_mins ELSE 0 END
+      - name: available_minutes
+        description: >
+          Total minutes of playable court time. Excludes closed (Gesloten) slots
+          but includes unbooked available (Beschikbaar) time.
+        type: simple
+        agg: sum
+        expr: CASE WHEN reservation_type != 'Gesloten' THEN duration_in_mins ELSE 0 END
+      - name: total_reservations
+        description: >
+          Count of actual reservations. NULL reservation_ids on gap-fill and
+          closed-hour rows are excluded automatically by the COUNT aggregate.
+        type: simple
+        agg: count
+        expr: reservation_id
     columns:
       - name: slot_key
         data_type: varchar
@@ -39,6 +64,9 @@ models:
         data_tests:
           - unique
           - not_null
+        entity:
+          type: primary
+          name: slot
       - name: reservation_id
         data_type: NUMBER(18, 0)
         description: >
@@ -47,9 +75,14 @@ models:
       - name: court_number
         data_type: NUMBER(2, 0)
         description: Tennis court number (1–5).
+        dimension:
+          type: categorical
       - name: reservation_date
         data_type: date
         description: Calendar date of the slot.
+        granularity: day
+        dimension:
+          type: time
       - name: start_time
         data_type: time
         description: Start time of the slot (24-hour).
@@ -62,6 +95,8 @@ models:
           Type of slot. Actual reservation types from the source system,
           "Beschikbaar" for available (gap-fill) slots, or "Gesloten" for
           closed hours outside operating times.
+        dimension:
+          type: categorical
       - name: event_description
         data_type: varchar
         description: Description of the event. "Niet geboekt" for available gaps; NULL for closed hours.
@@ -73,22 +108,42 @@ models:
         description: >
           True when the slot falls within a known ZTC winter break period
           (courts closed for the season).
+        dimension:
+          type: categorical
 
   - name: fct_weather
     description: >
       One row per hour of weather data for Utrecht. The ideal_weather boolean
       is pre-computed using the tennis_weather macro: temperature 10–35°C,
       no precipitation, wind speed at or below 20 km/h.
+    semantic_model:
+      enabled: true
+    metrics:
+      - name: ideal_weather_hours
+        description: >
+          Count of hours where all tennis-weather conditions were met.
+          Explicit CAST required because Snowflake booleans cannot be summed directly.
+        type: simple
+        agg: sum
+        expr: CAST(ideal_weather AS INTEGER)
     columns:
       - name: datetime
         description: Timestamp of the observation, truncated to the hour. Primary key.
         data_tests:
           - unique
           - not_null
+        entity:
+          type: primary
+          name: weather_observation
+        granularity: hour
+        dimension:
+          type: time
       - name: ideal_weather
         description: >
           True when all tennis-weather conditions are met: temperature 10–35°C,
           no precipitation, wind speed ≤ 20 km/h.
+        dimension:
+          type: categorical
 
   - name: fct_reservations
     description: >

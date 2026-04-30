@@ -45,3 +45,14 @@ dbt build                          # run all models + tests
 dbt build --select staging         # staging layer only
 dbt build --select +dim_members    # dim_members and all upstream
 ```
+
+### 5. Sync YAML documentation (optional)
+
+dbt-osmosis keeps YAML schema files accurate and propagates column descriptions across the lineage. Run it after building models to catch any drift:
+
+```bash
+dbt-osmosis yaml refactor --check  # check only, no writes
+dbt-osmosis yaml refactor          # apply fixes in place
+```
+
+See [`docs/dbt-osmosis.md`](docs/dbt-osmosis.md) for details.

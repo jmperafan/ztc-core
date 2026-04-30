@@ -1,0 +1,97 @@
+metrics:
+  - name: court_utilization_rate
+    description: >
+      Share of available court time that was booked, excluding winter-break periods.
+      Closed hours are excluded from both numerator and denominator — you cannot
+      book a court that is not open.
+      ratio type ensures MetricFlow aggregates numerator and denominator independently
+      before dividing, so the result is always correct regardless of grouping.
+    type: ratio
+    numerator: booked_minutes
+    denominator: available_minutes
+    filter: "{{ Dimension('slot__is_winter_break') }} = FALSE"
+
+saved_queries:
+  - name: monthly_court_utilization
+    description: Court utilization rate by calendar month, excluding winter break.
+    query_params:
+      metrics:
+        - court_utilization_rate
+      group_by:
+        - TimeDimension('metric_time', 'month')
+    exports:
+      - name: monthly_court_utilization
+        config:
+          export_as: view
+
+  - name: court_utilization_by_court
+    description: Court utilization rate broken down by court number.
+    query_params:
+      metrics:
+        - court_utilization_rate
+      group_by:
+        - Dimension('slot__court_number')
+    exports:
+      - name: court_utilization_by_court
+        config:
+          export_as: view
+
+  - name: weekly_reservations
+    description: Total reservation count grouped by week.
+    query_params:
+      metrics:
+        - total_reservations
+      group_by:
+        - TimeDimension('metric_time', 'week')
+    exports:
+      - name: weekly_reservations
+        config:
+          export_as: view
+
+  - name: reservations_by_type
+    description: Total reservations broken down by reservation type.
+    query_params:
+      metrics:
+        - total_reservations
+      group_by:
+        - Dimension('slot__reservation_type')
+    exports:
+      - name: reservations_by_type
+        config:
+          export_as: view
+
+  - name: monthly_ideal_weather
+    description: Count of ideal tennis weather hours by calendar month.
+    query_params:
+      metrics:
+        - ideal_weather_hours
+      group_by:
+        - TimeDimension('metric_time', 'month')
+    exports:
+      - name: monthly_ideal_weather
+        config:
+          export_as: view
+
+  - name: active_members_by_membership_type
+    description: Active member count sliced by current membership type.
+    query_params:
+      metrics:
+        - active_members
+      group_by:
+        - Dimension('member__current_type_of_membership')
+    exports:
+      - name: active_members_by_membership_type
+        config:
+          export_as: view
+
+  - name: active_members_by_gender
+    description: Active member count sliced by gender.
+    query_params:
+      metrics:
+        - active_members
+      group_by:
+        - Dimension('member__gender')
+    exports:
+      - name: active_members_by_gender
+        config:
+          export_as: view

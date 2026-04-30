@@ -57,6 +57,33 @@ macros:
         type: any
         description: The dbt node object for the model being compiled.
 
+  - name: test_is_between
+    description: >
+      Generic data test that fails when a non-null column value falls outside the
+      inclusive range [min_value, max_value]. Apply it in a schema YAML file under
+      data_tests to validate numeric columns such as court_number (1–5) or playing
+      strength ratings. Reference it in YAML as `is_between` (dbt adds the test_ prefix).
+    arguments:
+      - name: model
+        type: relation
+        description: The model being tested (injected automatically by dbt).
+      - name: column_name
+        type: string
+        description: The column to validate.
+      - name: min_value
+        type: float
+        description: Inclusive lower bound.
+      - name: max_value
+        type: float
+        description: Inclusive upper bound.
+
+  - name: precipitation_alert_threshold
+    description: >
+      Returns the precipitation level in millimetres above which outdoor conditions
+      are flagged as unsuitable for play. Reads the DBT_PRECIPITATION_ALERT_MM
+      environment variable; defaults to 2 mm when the variable is not set.
+      Demonstrates the env_var() pattern for runtime-configurable thresholds.
+
   - name: is_winter_break
     description: >
       Returns a boolean SQL condition that evaluates to true when a date falls within

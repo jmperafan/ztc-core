@@ -41,9 +41,16 @@ models:
       +schema: metrics
 
 vars:
-  start_date: '2022-01-01'
+  # env_var() pulls from the shell environment; the second argument is the default
+  # when the variable is not set. Override at run time:
+  #   export DBT_START_DATE=2023-01-01 && dbt run
+  start_date: "{{ env_var('DBT_START_DATE', '2022-01-01') }}"
   watermark_schema: watermark
   watermark_table: dbt_high_watermark
-  opening_time: '08:00:00'
-  closing_time: '23:00:00'
+  opening_time: "{{ env_var('ZTC_OPENING_TIME', '08:00:00') }}"
+  closing_time: "{{ env_var('ZTC_CLOSING_TIME', '23:00:00') }}"
   court_numbers: [1, 2, 3, 4, 5]
+
+snapshots:
+  zuilense_tennis_club:
+    +target_schema: snapshots

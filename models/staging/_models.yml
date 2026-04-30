@@ -25,6 +25,11 @@ models:
         description: Raw duration in hours as provided by the source system.
       - name: court_number
         description: Tennis court number (1–5), extracted from the raw court string.
+        data_tests:
+          - is_between:
+              arguments:
+                min_value: 1
+                max_value: 5
       - name: player_1
         description: Name of the primary booking member (inschrijver).
       - name: player_2
