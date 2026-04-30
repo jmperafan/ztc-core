@@ -1,56 +1,136 @@
-# Name your project! Project names should contain only lowercase characters
-# and underscores. A good package name should reflect your organization's
-# name or the intended use of these models
-name: 'zuilense_tennis_club'
+# ──────────────────────────────────────────────────────────────────────────────
+# DEMO: dbt_project.yml feature showcase
+# ──────────────────────────────────────────────────────────────────────────────
 
-# This setting configures which "profile" dbt uses for this project.
+name: 'zuilense_tennis_club'
 profile: 'zuilense_tennis_club'
 
-# These configurations specify where dbt should look for different types of files.
-# The `model-paths` config, for example, states that models in this project can be
-# found in the "models/" directory. You probably won't need to change these!
-model-paths: ["models"]
+# ── 1. REQUIRE A MINIMUM dbt VERSION ─────────────────────────────────────────
+# Prevents running this project on an older dbt-core that lacks features we use
+# (e.g., microbatch, unit tests, materializations introduced in 1.8).
+# Accepts a version range: ">=1.8.0,<2.0.0" is also valid.
+require-dbt-version: ">=1.8.0"
+
+# ── File-path configuration (unchanged) ──────────────────────────────────────
+model-paths:    ["models"]
 analysis-paths: ["analyses"]
-test-paths: ["tests"]
-seed-paths: ["seeds"]
-macro-paths: ["macros"]
+test-paths:     ["tests"]
+seed-paths:     ["seeds"]
+macro-paths:    ["macros"]
 snapshot-paths: ["snapshots"]
 
-clean-targets: # directories to be removed by `dbt clean`
+clean-targets:
   - "target"
   - "dbt_packages"
 
-# Configuring models
+# ──────────────────────────────────────────────────────────────────────────────
+# 2. VARIABLES
+# vars values ARE rendered as Jinja at parse time, so env_var() works here.
+# ──────────────────────────────────────────────────────────────────────────────
+vars:
+  # Override at runtime:  DBT_START_DATE=2023-01-01 dbt run
+  start_date:       "{{ env_var('DBT_START_DATE', '2022-01-01') }}"
+  watermark_schema: watermark
+  watermark_table:  dbt_high_watermark
+  opening_time:     "{{ env_var('ZTC_OPENING_TIME', '08:00:00') }}"
+  closing_time:     "{{ env_var('ZTC_CLOSING_TIME', '23:00:00') }}"
+  court_numbers:    [1, 2, 3, 4, 5]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 3. MODEL CONFIGS
+#    Every key is prefixed with + so dbt treats it as a config, not a folder.
+# ──────────────────────────────────────────────────────────────────────────────
 models:
   zuilense_tennis_club:
+
+    # ── Project-wide defaults ────────────────────────────────────────────────
     +static_analysis: strict
+    +persist_docs:             # propagates model/column descriptions to Snowflake
+      relation: true
+      columns:  true
+
+    # ── 3a. STAGING LAYER ────────────────────────────────────────────────────
     staging:
       +materialized: view
       +schema: staging
+      +tags: ["staging", "raw"]
+      # +grants: Snowflake role names — no "role:" prefix (that is BigQuery syntax)
+      +grants:
+        select: ["REPORTING"]
+
+    # ── 3b. INTERMEDIATE LAYER ───────────────────────────────────────────────
     intermediate:
       +materialized: view
       +schema: intermediate
+      +tags: ["intermediate"]
+      +grants:
+        select: ["TRANSFORM"]
+
+    # ── 3c. CORE LAYER ───────────────────────────────────────────────────────
     core:
       +materialized: table
       +schema: core
+      +tags: ["core", "certified"]
+      +grants:
+        select: ["REPORTING", "TRANSFORM"]
+      +meta:
+        owner: "data-engineering"
+        sla:   "daily"
+
+    # ── 3d. MARTS LAYER ──────────────────────────────────────────────────────
     marts:
       +materialized: table
       +schema: marts
+      +tags: ["marts"]
+      +grants:
+        select: ["REPORTING", "BI_TOOL"]
+      +meta:
+        owner: "analytics"
+        sla:   "daily"
+
+      # ── 4. JINJA IN CONFIG ─────────────────────────────────────────────────
+      # dbt renders Jinja in +enabled in dbt_project.yml. It does NOT render
+      # Jinja in most other config keys (e.g. +tags, +schema). The only reliable
+      # place for environment-conditional tags is inside the model file itself
+      # via {{ config(tags=[...]) }}, or you use +enabled here.
+      #
+      # env_var() with the | as_bool filter is the idiomatic pattern for
+      # feature-flag enabled. The second arg to env_var() is the default
+      # when the variable is absent — no export needed for the "off" state.
+      #
+      # Toggle on:  export DBT_ENABLE_ML_MODELS=true && dbt run -s tag:ml
+      python_court_stats:
+        +enabled: "{{ env_var('DBT_ENABLE_ML_MODELS', 'false') | as_bool }}"
+        +tags: ["ml", "python"]
+
+      python_demand_forecast:
+        +enabled: "{{ env_var('DBT_ENABLE_ML_MODELS', 'false') | as_bool }}"
+        +tags: ["ml", "python"]
+
+      python_member_segments:
+        +enabled: "{{ env_var('DBT_ENABLE_ML_MODELS', 'false') | as_bool }}"
+        +tags: ["ml", "python"]
+
+    # ── 3e. METRICS / MetricFlow LAYER ───────────────────────────────────────
     metrics:
       +materialized: table
       +schema: metrics
+      +tags: ["metrics"]
 
-vars:
-  # env_var() pulls from the shell environment; the second argument is the default
-  # when the variable is not set. Override at run time:
-  #   export DBT_START_DATE=2023-01-01 && dbt run
-  start_date: "{{ env_var('DBT_START_DATE', '2022-01-01') }}"
-  watermark_schema: watermark
-  watermark_table: dbt_high_watermark
-  opening_time: "{{ env_var('ZTC_OPENING_TIME', '08:00:00') }}"
-  closing_time: "{{ env_var('ZTC_CLOSING_TIME', '23:00:00') }}"
-  court_numbers: [1, 2, 3, 4, 5]
+      # ── 5. ENABLED: MetricFlow time-spine models ───────────────────────────
+      # These are only needed when the Semantic Layer is active. Disabling them
+      # in dev/CI cuts build time without touching any model SQL.
+      #
+      # Toggle on:  export DBT_ENABLE_METRICS=true && dbt run -s tag:metrics
+      metricflow_time_spine:
+        +enabled: "{{ env_var('DBT_ENABLE_METRICS', 'false') | as_bool }}"
 
+      metricflow_time_spine_hour:
+        +enabled: "{{ env_var('DBT_ENABLE_METRICS', 'false') | as_bool }}"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Snapshots
+# ──────────────────────────────────────────────────────────────────────────────
 snapshots:
   zuilense_tennis_club:
     +target_schema: snapshots
