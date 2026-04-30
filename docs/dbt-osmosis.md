@@ -42,18 +42,17 @@ Does everything `yaml organize` does, plus:
 
 ---
 
-## Required project config
+## Routing config — why it's not in dbt_project.yml
 
-osmosis uses the `+dbt-osmosis` key in `dbt_project.yml` to know which YAML file to route each model's documentation into. This project is configured to use `_models.yml` in each model directory:
+osmosis normally reads a `+dbt-osmosis` key from `dbt_project.yml` to know which YAML file to route each model's documentation into. This project uses dbt Fusion, which performs strict schema validation and rejects unknown `+` keys — so that approach is off the table.
 
-```yaml
-# dbt_project.yml
-models:
-  zuilense_tennis_club:
-    +dbt-osmosis: "_models.yml"
+Instead, osmosis supports a fallback: a `dbt_osmosis_default_path` dbt variable, which can be passed directly on the command line without touching any project file:
+
+```bash
+dbt-osmosis yaml refactor -C --vars '{"dbt_osmosis_default_path": "_{model}.yml"}'
 ```
 
-Without this config, osmosis does not know where to place YAML blocks and will error.
+The CI workflow uses this flag. `dbt_project.yml` stays Fusion-clean, and the routing config is ephemeral to the runner.
 
 ---
 
@@ -125,19 +124,19 @@ source .env
 **Check without writing (preview mode):**
 
 ```bash
-dbt-osmosis yaml refactor --dry-run -C
+dbt-osmosis yaml refactor --dry-run -C --vars '{"dbt_osmosis_default_path": "_{model}.yml"}'
 ```
 
 **Check without DB credentials:**
 
 ```bash
-dbt-osmosis yaml refactor --disable-introspection -C
+dbt-osmosis yaml refactor --disable-introspection -C --vars '{"dbt_osmosis_default_path": "_{model}.yml"}'
 ```
 
 **Apply fixes in place:**
 
 ```bash
-dbt-osmosis yaml refactor --auto-apply
+dbt-osmosis yaml refactor --auto-apply --vars '{"dbt_osmosis_default_path": "_{model}.yml"}'
 ```
 
 After applying fixes, review the diff before committing. osmosis may have:
@@ -155,14 +154,14 @@ Given this lineage:
 stg_reservations  ──►  int_court_usage  ──►  fct_court_usage
 ```
 
-If `staging/_models.yml` has:
+If `staging/_{model}.yml` has:
 
 ```yaml
 - name: court_id
   description: Unique identifier for the tennis court (1–5).
 ```
 
-And `core/_models.yml` has:
+And `core/_{model}.yml` has:
 
 ```yaml
 - name: court_id
