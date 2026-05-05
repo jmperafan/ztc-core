@@ -82,4 +82,3 @@ models:
       +meta:
         owner: "analytics"
         sla:   "daily"
-
