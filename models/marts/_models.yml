@@ -158,55 +158,26 @@ models:
     description: >
       Anonymised member dimension. One row per current or former member of ZTC.
       Use this model to count active members and slice by demographic attributes.
-    semantic_model:
-      enabled: true
-    metrics:
-      - name: active_members
-        description: >
-          Count of distinct active club members. Uses a CASE expression rather than a
-          filter so inactive members remain available for dimension queries — a row-level
-          filter would exclude them from join paths entirely.
-        type: simple
-        agg: count_distinct
-        expr: CASE WHEN is_club_member = TRUE THEN member_id ELSE NULL END
     columns:
       - name: member_id
         description: Unique club membership number. Primary key.
         data_tests:
           - unique
           - not_null
-        entity:
-          type: primary
-          name: member
       - name: member_since
         description: Date the member joined the club.
-        granularity: day
-        dimension:
-          type: time
       - name: gender
         description: Member's gender.
-        dimension:
-          type: categorical
       - name: age_group
         description: Member's age group bucket.
-        dimension:
-          type: categorical
       - name: city
         description: Member's city of residence.
-        dimension:
-          type: categorical
       - name: current_type_of_membership
         description: Name of the currently active membership tier.
-        dimension:
-          type: categorical
       - name: is_club_member
         description: True if the member holds an active club membership.
-        dimension:
-          type: categorical
       - name: is_knltb_member
         description: True if the member is registered with the national tennis federation.
-        dimension:
-          type: categorical
 
   - name: python_member_segments
     config:

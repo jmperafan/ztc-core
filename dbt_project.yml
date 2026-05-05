@@ -83,8 +83,3 @@ models:
         owner: "analytics"
         sla:   "daily"
 
-    # ── 3e. METRICS / MetricFlow LAYER ───────────────────────────────────────
-    metrics:
-      +materialized: table
-      +schema: metrics
-      +tags: ["metrics"]
