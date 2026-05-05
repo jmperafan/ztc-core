@@ -31,6 +31,8 @@ jobs:
   bouncer:
     name: dbt Bouncer
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
 
     steps:
       - name: Checkout
@@ -61,7 +63,9 @@ jobs:
 
       - name: Run dbt Bouncer
         if: steps.fetch-manifest.outputs.skip != 'true'
-        uses: godatadriven/dbt-bouncer@v0
+        uses: godatadriven/dbt-bouncer@v3
+        env:
+          GH_TOKEN: ${{ github.token }}
         with:
           config-file: ./dbt-bouncer.yml
           send-pr-comment: "true"

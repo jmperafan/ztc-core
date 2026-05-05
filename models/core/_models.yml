@@ -40,6 +40,7 @@ models:
           without the winter-break filter applied at the ratio metric level.
         type: simple
         agg: sum
+        agg_time_dimension: reservation_date
         expr: CASE WHEN reservation_type NOT IN ('Beschikbaar', 'Gesloten') THEN duration_in_mins ELSE 0 END
       - name: available_minutes
         description: >
@@ -47,6 +48,7 @@ models:
           but includes unbooked available (Beschikbaar) time.
         type: simple
         agg: sum
+        agg_time_dimension: reservation_date
         expr: CASE WHEN reservation_type != 'Gesloten' THEN duration_in_mins ELSE 0 END
       - name: total_reservations
         description: >
@@ -54,6 +56,7 @@ models:
           closed-hour rows are excluded automatically by the COUNT aggregate.
         type: simple
         agg: count
+        agg_time_dimension: reservation_date
         expr: reservation_id
     columns:
       - name: slot_key
@@ -125,6 +128,7 @@ models:
           Explicit CAST required because Snowflake booleans cannot be summed directly.
         type: simple
         agg: sum
+        agg_time_dimension: datetime
         expr: CAST(ideal_weather AS INTEGER)
     columns:
       - name: datetime
