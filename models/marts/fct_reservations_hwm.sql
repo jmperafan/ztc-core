@@ -27,25 +27,25 @@
   )
 }}
 
-with fct_reservations as (
-    select * from {{ ref('fct_reservations') }}
+WITH fct_reservations AS (
+    SELECT * FROM {{ ref('fct_reservations') }}
 ),
 
-bridge_member_reservations as (
-    select * from {{ ref('bridge_member_reservations') }}
+bridge_member_reservations AS (
+    SELECT * FROM {{ ref('bridge_member_reservations') }}
 ),
 
-dim_members_anonimized as (
-    select * from {{ ref('dim_members_anonimized') }}
+dim_members_anonimized AS (
+    SELECT * FROM {{ ref('dim_members_anonimized') }}
 ),
 
-fct_weather as (
-    select * from {{ ref('fct_weather') }}
+fct_weather AS (
+    SELECT * FROM {{ ref('fct_weather') }}
 ),
 
-reservations as (
+reservations AS (
 
-    select
+    SELECT
         reservation_id,
         reservation_date,
         court_number,
@@ -54,28 +54,31 @@ reservations as (
         duration_in_mins,
         reservation_type,
         event_description,
-        dayofweek(reservation_date)     as day_of_week,
-        dayname(reservation_date)       as day_of_week_name,
-        hour(start_time)                as start_hour
-    from fct_reservations
-    where reservation_type = 'Gereserveerd'
+        dayofweek(reservation_date) AS day_of_week,
+        dayname(reservation_date) AS day_of_week_name,
+        hour(start_time) AS start_hour
+    FROM fct_reservations
+    WHERE
+        reservation_type = 'Gereserveerd'
 
-    {% if is_incremental() %}
-    -- get_previous_hwm: last committed upper bound from the watermark table
-    -- get_current_hwm:  max(reservation_date) snapshotted by the pre-hook at run start
-    and reservation_date between ({{ get_previous_hwm(ref('fct_reservations')) }})
-                             and ({{ get_current_hwm(ref('fct_reservations')) }})
-    {% endif %}
+        {% if is_incremental() %}
+            -- get_previous_hwm: last committed upper bound from the watermark table
+            -- get_current_hwm:  max(reservation_date) snapshotted by the pre-hook at run start
+            AND reservation_date BETWEEN ({{ get_previous_hwm(ref('fct_reservations')) }})
+            AND ({{ get_current_hwm(ref('fct_reservations')) }})
+        {% endif %}
 
 ),
 
-member_bridge as (
-    select reservation_id, member_id
-    from bridge_member_reservations
+member_bridge AS (
+    SELECT
+        reservation_id,
+        member_id
+    FROM bridge_member_reservations
 ),
 
-member_profiles as (
-    select
+member_profiles AS (
+    SELECT
         member_id,
         gender,
         age_group,
@@ -83,22 +86,22 @@ member_profiles as (
         current_type_of_membership,
         is_club_member,
         is_knltb_member
-    from dim_members_anonimized
+    FROM dim_members_anonimized
 ),
 
-weather as (
-    select
-        date(datetime)  as weather_date,
-        hour(datetime)  as weather_hour,
+weather AS (
+    SELECT
+        date(datetime) AS weather_date,
+        hour(datetime) AS weather_hour,
         temperature,
         precipitation,
         wind_speed,
         ideal_weather
-    from fct_weather
+    FROM fct_weather
 ),
 
-final as (
-    select
+final AS (
+    SELECT
         r.reservation_id,
         r.reservation_date,
         r.court_number,
@@ -119,11 +122,12 @@ final as (
         w.precipitation,
         w.wind_speed,
         w.ideal_weather
-    from reservations r
-    left join member_bridge b   on r.reservation_id = b.reservation_id
-    left join member_profiles p on b.member_id      = p.member_id
-    left join weather w         on r.reservation_date = w.weather_date
-                                and r.start_hour      = w.weather_hour
+    FROM reservations AS r
+    LEFT JOIN member_bridge AS b ON r.reservation_id = b.reservation_id
+    LEFT JOIN member_profiles AS p ON b.member_id = p.member_id
+    LEFT JOIN weather
+        AS w ON r.reservation_date = w.weather_date
+    AND r.start_hour = w.weather_hour
 )
 
-select * from final
+SELECT * FROM final

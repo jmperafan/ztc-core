@@ -41,15 +41,17 @@ reservations AS (
         duration_in_mins,
         reservation_type,
         event_description,
-        DAYOFWEEK(reservation_date)     AS day_of_week,
-        DAYNAME(reservation_date)       AS day_of_week_name,
-        HOUR(start_time)                AS start_hour
+        DAYOFWEEK(reservation_date) AS day_of_week,
+        DAYNAME(reservation_date) AS day_of_week_name,
+        HOUR(start_time) AS start_hour
     FROM fct_reservations
     WHERE reservation_type = 'Gereserveerd'  -- actual bookings only, no gap-fill rows
 ),
 
 member_bridge AS (
-    SELECT reservation_id, member_id
+    SELECT
+        reservation_id,
+        member_id
     FROM bridge_member_reservations
 ),
 
@@ -83,9 +85,9 @@ final AS (
         p.current_type_of_membership,
         p.is_club_member,
         p.is_knltb_member
-    FROM reservations r
-    LEFT JOIN member_bridge b  ON r.reservation_id = b.reservation_id
-    LEFT JOIN member_profiles p ON b.member_id      = p.member_id
+    FROM reservations AS r
+    LEFT JOIN member_bridge AS b ON r.reservation_id = b.reservation_id
+    LEFT JOIN member_profiles AS p ON b.member_id = p.member_id
 )
 
 SELECT * FROM final

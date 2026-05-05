@@ -1,12 +1,12 @@
 {% macro update_job_param(success=true) %}
 
-  {% if execute %}
+    {% if execute %}
     {% set upstream_nodes = graph.nodes[model.unique_id].depends_on.nodes %}
   {% else %}
-    {% set upstream_nodes = [] %}
-  {% endif %}
+        {% set upstream_nodes = [] %}
+    {% endif %}
 
-  {% if flags.FULL_REFRESH %}
+    {% if flags.FULL_REFRESH %}
     {% set delete_target_hwm_rows %}
         delete from {{ get_hwm_fqn() }}
         where target_name = '{{ model.unique_id }}';
@@ -14,7 +14,7 @@
     {% set delete_hwm_rows = run_query(delete_target_hwm_rows) %}
   {% endif %}
 
-  {% for upstream_node in upstream_nodes %}
+    {% for upstream_node in upstream_nodes %}
     {% set model_node = graph.nodes.get(upstream_node) %}
     {% set source_node = graph.sources.get(upstream_node) %}
 

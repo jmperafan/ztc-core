@@ -57,13 +57,13 @@ final AS (
             start_time::varchar
         ) AS slot_key,
         reservation_id,
-        court_number::NUMBER(2, 0) AS court_number,
+        court_number::number(2, 0) AS court_number,
         reservation_date,
         start_time,
         end_time,
         reservation_type,
         event_description,
-        duration_in_mins::NUMBER(10, 0) AS duration_in_mins,
+        duration_in_mins::number(10, 0) AS duration_in_mins,
         {{ is_winter_break("reservation_date") }} AS is_winter_break
     FROM unioned
     -- Overlapping reservations in the source (same court/date/start_time) produce
