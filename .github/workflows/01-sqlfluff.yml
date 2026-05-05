@@ -1,0 +1,35 @@
+name: "1b · SQLFluff"
+
+# ----------------------------------------------------------------------------
+# Approach: local tooling, no credentials required.
+#
+# SQLFluff enforces consistent SQL style across models and macros.
+# Config lives in .sqlfluff; dialect and templater are set there.
+#
+# Runs independently from pre-commit so failures are reported separately
+# and both checks can run in parallel.
+# ----------------------------------------------------------------------------
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  sqlfluff:
+    name: SQLFluff
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: SQLFluff lint
+        run: sqlfluff lint models/ macros/
