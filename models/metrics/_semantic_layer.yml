@@ -1,4 +1,32 @@
 metrics:
+  - name: booked_minutes
+    description: Total minutes of actual court bookings, excluding available and closed slots.
+    type: simple
+    type_params:
+      measure:
+        name: booked_minutes
+
+  - name: available_minutes
+    description: Total minutes of playable court time, excluding closed slots.
+    type: simple
+    type_params:
+      measure:
+        name: available_minutes
+
+  - name: total_reservations
+    description: Count of actual reservations.
+    type: simple
+    type_params:
+      measure:
+        name: total_reservations
+
+  - name: ideal_weather_hours
+    description: Count of hours where all tennis-weather conditions were met.
+    type: simple
+    type_params:
+      measure:
+        name: ideal_weather_hours
+
   - name: court_utilization_rate
     description: >
       Share of available court time that was booked, excluding winter-break periods.

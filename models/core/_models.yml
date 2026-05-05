@@ -30,34 +30,6 @@ models:
       One row per court-slot covering every minute of every day: actual bookings,
       available (gap-fill) slots, and closed hours. Use this model to compute
       court utilization as booked minutes divided by available minutes.
-    semantic_model:
-      enabled: true
-    metrics:
-      - name: booked_minutes
-        description: >
-          Total minutes of actual court bookings. Excludes available (Beschikbaar)
-          and closed (Gesloten) slots. Kept as a raw metric so it can be queried
-          without the winter-break filter applied at the ratio metric level.
-        type: simple
-        agg: sum
-        agg_time_dimension: reservation_date
-        expr: CASE WHEN reservation_type NOT IN ('Beschikbaar', 'Gesloten') THEN duration_in_mins ELSE 0 END
-      - name: available_minutes
-        description: >
-          Total minutes of playable court time. Excludes closed (Gesloten) slots
-          but includes unbooked available (Beschikbaar) time.
-        type: simple
-        agg: sum
-        agg_time_dimension: reservation_date
-        expr: CASE WHEN reservation_type != 'Gesloten' THEN duration_in_mins ELSE 0 END
-      - name: total_reservations
-        description: >
-          Count of actual reservations. NULL reservation_ids on gap-fill and
-          closed-hour rows are excluded automatically by the COUNT aggregate.
-        type: simple
-        agg: count
-        agg_time_dimension: reservation_date
-        expr: reservation_id
     columns:
       - name: slot_key
         data_type: varchar
@@ -119,17 +91,6 @@ models:
       One row per hour of weather data for Utrecht. The ideal_weather boolean
       is pre-computed using the tennis_weather macro: temperature 10–35°C,
       no precipitation, wind speed at or below 20 km/h.
-    semantic_model:
-      enabled: true
-    metrics:
-      - name: ideal_weather_hours
-        description: >
-          Count of hours where all tennis-weather conditions were met.
-          Explicit CAST required because Snowflake booleans cannot be summed directly.
-        type: simple
-        agg: sum
-        agg_time_dimension: datetime
-        expr: CAST(ideal_weather AS INTEGER)
     columns:
       - name: datetime
         description: Timestamp of the observation, truncated to the hour. Primary key.

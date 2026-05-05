@@ -1,0 +1,55 @@
+semantic_models:
+
+  - name: fct_court_usage
+    model: ref('fct_court_usage')
+    defaults:
+      agg_time_dimension: reservation_date
+    entities:
+      - name: slot
+        type: primary
+        expr: slot_key
+    dimensions:
+      - name: court_number
+        type: categorical
+      - name: reservation_date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: reservation_type
+        type: categorical
+      - name: is_winter_break
+        type: categorical
+    measures:
+      - name: booked_minutes
+        agg: sum
+        expr: "CASE WHEN reservation_type NOT IN ('Beschikbaar', 'Gesloten') THEN duration_in_mins ELSE 0 END"
+        agg_time_dimension: reservation_date
+      - name: available_minutes
+        agg: sum
+        expr: "CASE WHEN reservation_type != 'Gesloten' THEN duration_in_mins ELSE 0 END"
+        agg_time_dimension: reservation_date
+      - name: total_reservations
+        agg: count
+        expr: reservation_id
+        agg_time_dimension: reservation_date
+
+  - name: fct_weather
+    model: ref('fct_weather')
+    defaults:
+      agg_time_dimension: datetime
+    entities:
+      - name: weather_observation
+        type: primary
+        expr: datetime
+    dimensions:
+      - name: datetime
+        type: time
+        type_params:
+          time_granularity: hour
+      - name: ideal_weather
+        type: categorical
+    measures:
+      - name: ideal_weather_hours
+        agg: sum
+        expr: CAST(ideal_weather AS INTEGER)
+        agg_time_dimension: datetime
