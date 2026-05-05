@@ -30,4 +30,6 @@ def model(dbt, session):
     # 4. RETURN
     # session.create_dataframe() converts a pandas DataFrame back into a
     # Snowpark DataFrame, which dbt then writes to the warehouse.
+    session.use_database(dbt.this.database)
+    session.use_schema(dbt.this.schema)
     return session.create_dataframe(stats.to_pandas())

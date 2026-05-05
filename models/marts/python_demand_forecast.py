@@ -149,4 +149,6 @@ def model(dbt, session):
     )
 
     result = result.rename({col: col.upper() for col in result.columns})
+    session.use_database(dbt.this.database)
+    session.use_schema(dbt.this.schema)
     return session.create_dataframe(result.to_pandas())

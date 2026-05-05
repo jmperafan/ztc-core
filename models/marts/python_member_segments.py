@@ -93,4 +93,6 @@ def model(dbt, session):
             }
         )
     )
+    session.use_database(dbt.this.database)
+    session.use_schema(dbt.this.schema)
     return session.create_dataframe(df.to_pandas())
