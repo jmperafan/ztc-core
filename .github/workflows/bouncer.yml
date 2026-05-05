@@ -1,4 +1,4 @@
-name: "2 · dbt Bouncer"
+name: "dbt Bouncer"
 
 # ----------------------------------------------------------------------------
 # Approach: manifest-based convention enforcement via dbt Cloud API.

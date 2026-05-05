@@ -1,4 +1,4 @@
-name: "1a · Pre-commit"
+name: "Pre-commit"
 
 # ----------------------------------------------------------------------------
 # Approach: local tooling, no credentials required.

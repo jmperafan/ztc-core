@@ -1,4 +1,4 @@
-name: "3 · dbt Cloud CI"
+name: "dbt Cloud CI"
 
 # ----------------------------------------------------------------------------
 # Approach: trigger a dbt Cloud CI job via the API and poll until complete.

@@ -1,4 +1,4 @@
-name: "4 · dbt-osmosis"
+name: "dbt-osmosis"
 
 # ----------------------------------------------------------------------------
 # Approach: isolated dbt-core environment, no interference with dbt Fusion.
