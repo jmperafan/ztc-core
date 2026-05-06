@@ -1,5 +1,10 @@
-WITH source AS (
-    SELECT * FROM {{ source('ztc', 'court_usage') }}
+WITH deduped AS (
+    SELECT *
+    FROM {{ source('ztc', 'court_usage') }}
+    QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY startdatum, banen, begintijd
+        ORDER BY 1
+    ) = 1
 ),
 
 renamed AS (
@@ -26,7 +31,7 @@ renamed AS (
         clublidnummer AS member_id,
         type AS reservation_type,
         beschrijving AS event_description
-    FROM source
+    FROM deduped
 ),
 
 final AS (
