@@ -10,16 +10,8 @@ renamed AS (
         land AS country,
         labels,
         rollen AS roll,
-        CASE LOWER(clublid)
-            WHEN 'ja' THEN TRUE WHEN 'nee' THEN FALSE
-            WHEN 'true' THEN TRUE WHEN 'false' THEN FALSE
-            WHEN '1' THEN TRUE WHEN '0' THEN FALSE
-        END AS is_club_member,
-        CASE LOWER(bondslid)
-            WHEN 'ja' THEN TRUE WHEN 'nee' THEN FALSE
-            WHEN 'true' THEN TRUE WHEN 'false' THEN FALSE
-            WHEN '1' THEN TRUE WHEN '0' THEN FALSE
-        END AS is_knltb_member,
+        {{ dutch_bool('clublid') }} AS is_club_member,
+        {{ dutch_bool('bondslid') }} AS is_knltb_member,
         geslacht AS gender,
         actieve_lidmaatschap_pen AS current_type_of_membership,
         TRY_TO_DATE(actieve_lidmaatschap_pen_datum, 'DD/MM/YYYY') AS current_membership_start_date,
