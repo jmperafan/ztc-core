@@ -31,7 +31,7 @@
           and (hwm_source_model is none or model_node.name == hwm_source_model) %}
 
       {% set ns.process = true %}
-      {% set ns.hwm_field = model.config.meta.get('hwm_field', model.config.get('hwm_field', 'updated_at')) %}
+      {% set ns.hwm_field = model.config.meta.get('hwm_field', config.meta_get('hwm_field', 'updated_at')) %}
       {% set ns.upstream_node_db = model_node.database %}
       {% set ns.upstream_node_schema = model_node.schema %}
       {% set ns.upstream_node_alias = model_node.alias %}
@@ -41,10 +41,10 @@
 {% set loaded_at_field = source_node.loaded_at_field %}
 {% set ns.process = true %}
 
-{% if model.config.get('use_loaded_at', false) and loaded_at_field %}
+{% if config.meta_get('use_loaded_at', false) and loaded_at_field %}
         {% set ns.hwm_field = loaded_at_field %}
       {% else %}
-        {% set ns.hwm_field = model.config.meta.get('hwm_field', model.config.get('hwm_field', 'updated_at')) %}
+        {% set ns.hwm_field = model.config.meta.get('hwm_field', config.meta_get('hwm_field', 'updated_at')) %}
       {% endif %}
 
       {% set ns.upstream_node_db = source_node.database %}
