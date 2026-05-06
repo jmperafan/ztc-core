@@ -150,9 +150,9 @@ models:
           - unique
           - not_null
       - name: reservation_id
-        data_type: NUMBER(18, 0)
+        data_type: varchar
         description: >
-          ID of the original reservation for actual bookings.
+          Surrogate key of the original reservation for actual bookings.
           NULL for synthetic gap-fill and closed-hour rows.
       - name: court_number
         data_type: NUMBER(2, 0)
@@ -239,7 +239,7 @@ models:
       join. One row per reservation that can be attributed to a known club member.
     columns:
       - name: reservation_id
-        data_type: number
+        data_type: varchar
         description: Foreign key to fct_reservations.
         data_tests:
           - not_null

@@ -28,7 +28,7 @@ renamed AS (
         persoon2 AS player_2,
         persoon3 AS player_3,
         persoon4 AS player_4,
-        clublidnummer AS member_id,
+        CAST(clublidnummer AS NUMBER) AS member_id,
         type AS reservation_type,
         beschrijving AS event_description
     FROM deduped
