@@ -27,13 +27,25 @@ renamed AS (
         type AS reservation_type,
         beschrijving AS event_description
     FROM source
-    ORDER BY court_number, reservation_start
 ),
 
 final AS (
     SELECT
-        *,
-        ROW_NUMBER() OVER (ORDER BY court_number, reservation_start) AS reservation_id
+        {{ dbt_utils.generate_surrogate_key(['court_number', 'reservation_date', 'start_time']) }} AS reservation_id,
+        reservation_date,
+        start_time,
+        end_time,
+        reservation_start,
+        reservation_end,
+        duration_in_hours,
+        court_number,
+        player_1,
+        player_2,
+        player_3,
+        player_4,
+        member_id,
+        reservation_type,
+        event_description
     FROM renamed
 )
 

@@ -224,7 +224,7 @@ Each model layer in `dbt_project.yml` declares its own custom schema:
 
 ```yaml
 models:
-  zuilense_tennis_club:
+  ztc_core:
     staging:
       +schema: staging
     intermediate:

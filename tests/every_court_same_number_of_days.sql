@@ -1,4 +1,4 @@
-{{ config(severity='warn') }}
+{{ config(severity='error') }}
 
 WITH fct_court_usage AS (
     SELECT * FROM {{ ref('fct_court_usage') }}

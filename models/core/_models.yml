@@ -1,26 +1,136 @@
 models:
   - name: dim_calendar
+    config:
+      contract:
+        enforced: true
     description: >
       Date dimension covering every calendar day from start_date to the current date.
       Generated with a recursive CTE. Use date_key to join to fact tables on
       reservation_date or similar date columns.
     columns:
       - name: date_key
+        data_type: date
         description: Calendar date. Primary key.
         data_tests:
           - unique
           - not_null
 
   - name: dim_members
+    config:
+      contract:
+        enforced: true
     description: >
       One row per club member, enriched with calculated age, age_group bucket,
       and membership_length_in_months derived at query time from CURRENT_DATE().
     columns:
       - name: member_id
+        data_type: number
         description: Unique club membership number. Primary key.
         data_tests:
           - unique
           - not_null
+      - name: post_code
+        data_type: varchar
+        description: Member's postal code.
+      - name: city
+        data_type: varchar
+        description: Member's city of residence.
+      - name: country
+        data_type: varchar
+        description: Member's country of residence.
+      - name: labels
+        data_type: varchar
+        description: Custom labels assigned to the member in the club system.
+      - name: roll
+        data_type: varchar
+        description: Role(s) the member holds at the club (e.g. board, volunteer).
+      - name: is_club_member
+        data_type: boolean
+        description: True if the member holds an active club membership.
+      - name: is_knltb_member
+        data_type: boolean
+        description: True if the member is also registered with the national tennis federation (KNLTB).
+      - name: gender
+        data_type: varchar
+        description: Member's gender as recorded by the club.
+      - name: current_type_of_membership
+        data_type: varchar
+        description: Name of the currently active membership tier.
+      - name: current_membership_start_date
+        data_type: date
+        description: Start date of the current membership tier.
+      - name: inactive_type_of_membership
+        data_type: varchar
+        description: Name of the most recent lapsed membership tier.
+      - name: former_membership_start_date
+        data_type: date
+        description: Start date of the most recent lapsed membership tier.
+      - name: active_products
+        data_type: varchar
+        description: Additional products (e.g. locker rental) currently subscribed to.
+      - name: active_product_date
+        data_type: date
+        description: Start date of active additional products.
+      - name: inactive_products
+        data_type: varchar
+        description: Additional products that are no longer active.
+      - name: inactive_products_date
+        data_type: date
+        description: Start date of lapsed additional products.
+      - name: additional_information
+        data_type: varchar
+        description: Free-text extra information field from the club system.
+      - name: reasons_for_cancellation
+        data_type: varchar
+        description: Reason code for membership cancellation, if applicable.
+      - name: reasons_for_cancellation_comment
+        data_type: varchar
+        description: Free-text comment accompanying the cancellation reason.
+      - name: club_app_login_date
+        data_type: date
+        description: Date the member last logged in to the club app.
+      - name: services_current_year
+        data_type: float
+        description: Number of volunteer service points accumulated in the current season.
+      - name: singles_level
+        data_type: float
+        description: KNLTB playing strength rating for singles (lower is stronger).
+      - name: doubles_level
+        data_type: float
+        description: KNLTB playing strength rating for doubles.
+      - name: padel_level
+        data_type: float
+        description: Playing strength rating for padel.
+      - name: ranking_singles
+        data_type: float
+        description: National singles ranking number.
+      - name: ranking_doubles
+        data_type: float
+        description: National doubles ranking number.
+      - name: ranking_padel
+        data_type: float
+        description: National padel ranking number.
+      - name: choice_of_membership
+        data_type: varchar
+        description: Membership option selected by the member during sign-up.
+      - name: volunteer_type
+        data_type: varchar
+        description: Type of volunteer work the member is registered for.
+      - name: birth_date
+        data_type: date
+        description: Member's date of birth.
+      - name: member_since
+        data_type: date
+        description: Date the member joined the club.
+      - name: age
+        data_type: number
+        description: Member's current age in years, derived from birth_date at query time.
+      - name: age_group
+        data_type: number
+        description: Age group bucket (floor to nearest decade, e.g. 30 = 30–39).
+      - name: membership_length_in_months
+        data_type: number
+        description: Months since the member joined, derived from member_since at query time.
 
   - name: fct_court_usage
     config:
@@ -75,34 +185,108 @@ models:
           (courts closed for the season).
 
   - name: fct_weather
+    config:
+      contract:
+        enforced: true
     description: >
       One row per hour of weather data for Utrecht. The ideal_weather boolean
       is pre-computed using the tennis_weather macro: temperature 10–35°C,
       no precipitation, wind speed at or below 20 km/h.
     columns:
       - name: datetime
+        data_type: timestamp_ntz
         description: Timestamp of the observation, truncated to the hour. Primary key.
         data_tests:
           - unique
           - not_null
+      - name: temperature
+        data_type: float
+        description: Air temperature in degrees Celsius.
+      - name: thermal_sensation
+        data_type: float
+        description: Feels-like temperature in degrees Celsius.
+      - name: humidity
+        data_type: float
+        description: Relative humidity as a percentage (0–100).
+      - name: precipitation
+        data_type: float
+        description: Precipitation amount in millimetres.
+      - name: snow
+        data_type: float
+        description: Snowfall amount in centimetres.
+      - name: wind_gust
+        data_type: float
+        description: Maximum wind gust speed in km/h.
+      - name: wind_speed
+        data_type: float
+        description: Average wind speed in km/h.
+      - name: solar_energy
+        data_type: float
+        description: Solar energy in mega-joules per square metre.
       - name: ideal_weather
+        data_type: boolean
         description: >
           True when all tennis-weather conditions are met: temperature 10–35°C,
           no precipitation, wind speed ≤ 20 km/h.
 
+  - name: bridge_member_reservations
+    config:
+      contract:
+        enforced: true
+    description: >
+      Bridge table linking reservations to members. Filters out reservations with
+      no member ID and ensures referential integrity with dim_members via an inner
+      join. One row per reservation that can be attributed to a known club member.
+    columns:
+      - name: reservation_id
+        data_type: number
+        description: Foreign key to fct_reservations.
+        data_tests:
+          - not_null
+      - name: member_id
+        data_type: number
+        description: Foreign key to dim_members.
+        data_tests:
+          - not_null
+
   - name: fct_reservations
+    config:
+      contract:
+        enforced: true
     description: >
       One row per actual reservation. This is the cleanest grain for counting
       bookings — no gap-fill rows, no available/closed slots.
     columns:
       - name: reservation_id
-        description: Synthetic surrogate key for the reservation. Primary key.
+        data_type: varchar
+        description: Deterministic surrogate key — hash of (court_number, reservation_date, start_time). Primary key.
         data_tests:
           - unique
           - not_null
       - name: reservation_date
+        data_type: date
         description: Calendar date on which the reservation takes place.
+      - name: reservation_start
+        data_type: timestamp_ntz
+        description: Full timestamp of the reservation start.
+      - name: reservation_end
+        data_type: timestamp_ntz
+        description: Full timestamp of the reservation end.
+      - name: start_time
+        data_type: time
+        description: Start time of the reservation (TIME, 24-hour).
+      - name: end_time
+        data_type: time
+        description: End time of the reservation (TIME, 24-hour).
       - name: court_number
+        data_type: number
         description: Tennis court number (1–5).
       - name: reservation_type
+        data_type: varchar
         description: Category of the reservation as provided by the source system.
+      - name: event_description
+        data_type: varchar
+        description: Free-text description of the event or booking.
+      - name: duration_in_mins
+        data_type: number
+        description: Duration of the reservation in minutes.

@@ -1,4 +1,4 @@
-{{ config(severity='warn') }}
+{{ config(severity='error') }}
 
 SELECT
     court_number,

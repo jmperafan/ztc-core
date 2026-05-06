@@ -3,11 +3,11 @@ models:
     description: >
       Cleans and renames the raw court_usage source. One row per court reservation.
       Timestamps are parsed and cast to the correct types; court_number is extracted
-      from the raw court string; reservation_id is a synthetic surrogate key generated
-      with ROW_NUMBER ordered by court and start time.
+      from the raw court string; reservation_id is a deterministic surrogate key
+      derived from court_number, reservation_date, and start_time via dbt_utils.generate_surrogate_key.
     columns:
       - name: reservation_id
-        description: Synthetic surrogate key — stable only within a single run.
+        description: Deterministic surrogate key — hash of (court_number, reservation_date, start_time).
         data_tests:
           - unique
           - not_null

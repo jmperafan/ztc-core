@@ -199,7 +199,7 @@ dbt compile --select int_court_date_spine
 dbt compile --select int_court_date_spine --output text
 ```
 
-The compiled output lives in `target/compiled/zuilense_tennis_club/models/`. Inspecting it is useful when debugging unexpected query shapes.
+The compiled output lives in `target/compiled/ztc_core/models/`. Inspecting it is useful when debugging unexpected query shapes.
 
 ---
 

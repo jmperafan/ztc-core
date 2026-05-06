@@ -2,16 +2,9 @@ groups:
 
   # The analytics engineering team owns the data foundation: raw sources through
   # the core dimensional layer. Models in this group that are marked access: private
-  # cannot be referenced by models outside the group.
+  # cannot be referenced by models outside the group — including the ztc_analytics
+  # downstream project.
   - name: analytics_engineering
     owner:
       name: Analytics Engineering
       email: analytics@ztc-utrecht.nl
-
-  # The data science team owns the predictive and segmentation models in the marts
-  # layer. These consume public core models and produce outputs for dashboards and
-  # downstream applications.
-  - name: data_science
-    owner:
-      name: Data Science
-      email: datascience@ztc-utrecht.nl

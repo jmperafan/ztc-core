@@ -23,21 +23,6 @@ models:
           - unique
           - not_null
 
-  - name: bridge_member_reservations
-    description: >
-      Bridge table linking reservations to members. Filters out reservations with
-      no member ID and ensures referential integrity with dim_members via an inner
-      join. One row per reservation that can be attributed to a known club member.
-    columns:
-      - name: reservation_id
-        description: Foreign key to fct_reservations.
-        data_tests:
-          - not_null
-      - name: member_id
-        description: Foreign key to dim_members.
-        data_tests:
-          - not_null
-
   - name: int_court_date_spine
     description: >
       Cross-join of all court numbers and all calendar dates from dim_calendar.

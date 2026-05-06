@@ -31,11 +31,11 @@
 {% endmacro %}
 
 {% macro get_current_hwm(relation_obj) %}
-    {{ return(adapter.dispatch('get_hwm', 'zuilense_tennis_club')(true, relation_obj)) }}
+    {{ return(adapter.dispatch('get_hwm', 'ztc_core')(true, relation_obj)) }}
 {% endmacro %}
 
 {% macro get_previous_hwm(relation_obj) %}
-    {{ return(adapter.dispatch('get_hwm', 'zuilense_tennis_club')(false, relation_obj)) }}
+    {{ return(adapter.dispatch('get_hwm', 'ztc_core')(false, relation_obj)) }}
 {% endmacro %}
 
 {% macro snowflake__get_hwm(current, relation_obj) %}

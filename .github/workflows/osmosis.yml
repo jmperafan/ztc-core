@@ -53,7 +53,7 @@ jobs:
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml << EOF
-          zuilense_tennis_club:
+          ztc_core:
             target: ci
             outputs:
               ci:

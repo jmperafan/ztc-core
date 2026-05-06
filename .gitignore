@@ -25,3 +25,6 @@ dbt_internal_packages/
 
 # IDE
 .vscode/
+
+# Claude Code
+.claude/

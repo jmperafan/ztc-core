@@ -1,11 +1,13 @@
 {% macro is_winter_break(date_expr) %}
+{% set breaks = var('winter_breaks', []) %}
 (
-    -- Winter break in 2022
-    {{ date_expr }} >= '2022-01-01'
-    AND {{ date_expr }} <= '2022-03-19'
-) OR (
-    -- Winter break in 2023
-    {{ date_expr }} >= '2022-12-06'
-    AND {{ date_expr }} <= '2023-03-26'
+    {% if breaks %}
+        {% for break in breaks %}
+            ({{ date_expr }} >= '{{ break[0] }}' AND {{ date_expr }} <= '{{ break[1] }}')
+            {% if not loop.last %} OR {% endif %}
+        {% endfor %}
+    {% else %}
+        FALSE
+    {% endif %}
 )
 {% endmacro %}

@@ -1,8 +1,16 @@
 dbt_artifacts_dir: target
 
+# ──────────────────────────────────────────────────────────────────────────────
+# FOUNDATION PROJECT — strict governance
+#
+# This project is the authoritative source of truth for ZTC data. All public
+# core models are consumed by ztc_analytics via cross-project refs, so we
+# enforce contracts, descriptions, naming conventions, and test coverage here.
+# ──────────────────────────────────────────────────────────────────────────────
+
 manifest_checks:
 
-  # Naming conventions: enforce layer prefixes so lineage is readable at a glance.
+  # ── Naming conventions ────────────────────────────────────────────────────
   - name: check_model_names
     include: ^models/staging
     model_name_pattern: ^stg_
@@ -13,17 +21,43 @@ manifest_checks:
 
   - name: check_model_names
     include: ^models/core
-    model_name_pattern: ^(fct_|dim_|bridge_|metricflow_)
+    model_name_pattern: ^(fct_|dim_|bridge_)
 
-  - name: check_model_names
-    include: ^models/marts
-    model_name_pattern: ^(fct_|dim_|python_)
+  # ── Descriptions required on every model ─────────────────────────────────
+  - name: check_model_description_populated
+    include: ^models/
 
-  - name: check_model_names
-    include: ^models/metrics
-    model_name_pattern: ^metricflow_
+  # ── Descriptions required on every column in core (public surface area) ──
+  - name: check_model_columns_are_all_documented
+    include: ^models/core
 
-  # Structure: cap direct dependents to avoid fragile high-fanout models.
+  # ── Contracts must be enforced on every public core model ─────────────────
+  - name: check_model_contract_enforced
+    include: ^models/core
+
+  # ── Every core model must have unique + not_null on its primary key ───────
+  - name: check_model_has_tests_by_name
+    include: ^models/core
+    test_names:
+      - unique
+      - not_null
+
+  # ── Every staging model must have at least one test ───────────────────────
+  - name: check_model_has_tests_by_name
+    include: ^models/staging
+    test_names:
+      - not_null
+
+  # ── No model may have more than 5 direct dependents (keep DAG shallow) ────
   - name: check_model_max_fanout
     include: ^models/
-    max_downstream_models: 10
+    max_downstream_models: 5
+
+  # ── Source freshness: all sources must declare a loaded_at_field ──────────
+  - name: check_source_has_freshness_populated
+    include: ^models/staging
+
+  # ── No lineage violations: staging must not ref core or intermediate ───────
+  - name: check_model_depends_on_multiple_sources
+    include: ^models/staging
+    max_upstream_sources: 1

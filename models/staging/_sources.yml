@@ -5,6 +5,10 @@ sources:
     tables:
       - name: court_usage
         description: This table contains the reservations for our courts.
+        loaded_at_field: "CAST(startdatum AS TIMESTAMP)"
+        freshness:
+          warn_after: {count: 3, period: day}
+          error_after: {count: 7, period: day}
         columns:
           - name: startdatum
             description: Date of the reservation.
@@ -16,6 +20,10 @@ sources:
               - not_null
       - name: club_members
         description: This table contains information about our members.
+        loaded_at_field: "CAST(current_membership_start_date AS TIMESTAMP)"
+        freshness:
+          warn_after: {count: 30, period: day}
+          error_after: {count: 90, period: day}
         columns:
           - name: clublidnummer
             description: Unique club membership number. Primary key of this table.
@@ -24,6 +32,10 @@ sources:
               - not_null
       - name: weather_data
         description: Weather related data for the city of Utrecht.
+        loaded_at_field: datetime
+        freshness:
+          warn_after: {count: 1, period: day}
+          error_after: {count: 3, period: day}
         columns:
           - name: datetime
             description: Timestamp of the observation (hourly). Primary key of this table.

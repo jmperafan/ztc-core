@@ -123,7 +123,7 @@ This metric is most useful grouped by `metric_time__month` to show the shape of 
 
 ### active_members
 
-**Semantic model**: `dim_members_anonimized` (mart layer)
+**Semantic model**: `dim_members_anonymized` (mart layer in ztc_analytics)
 
 Active members are defined as members where `is_club_member = TRUE`. This maps to the `clublid` field in the source data (Dutch: "club lid" = club member) and reflects current membership status as of the most recent data load.
 
