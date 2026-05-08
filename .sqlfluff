@@ -25,3 +25,4 @@ tennis_weather_macro = """{% macro tennis_weather(temperature, precipitation, wi
 is_winter_break_macro = """{% macro is_winter_break(date) %}1 = 1{% endmacro %}"""
 get_previous_hwm_macro = """{% macro get_previous_hwm(model) %}'1900-01-01'{% endmacro %}"""
 get_current_hwm_macro = """{% macro get_current_hwm(model) %}'2099-12-31'{% endmacro %}"""
+dutch_bool_macro = """{% macro dutch_bool(col) %}FALSE{% endmacro %}"""

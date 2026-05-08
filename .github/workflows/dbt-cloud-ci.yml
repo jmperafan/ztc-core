@@ -39,6 +39,11 @@ jobs:
       - name: Trigger dbt Cloud CI job
         id: trigger
         run: |
+          if [ -z "${{ vars.DBT_CLOUD_BASE_URL }}" ] || [ -z "${{ secrets.DBT_CLOUD_API_TOKEN }}" ] || [ -z "${{ secrets.DBT_CLOUD_ACCOUNT_ID }}" ] || [ -z "${{ secrets.DBT_CLOUD_CI_JOB_ID }}" ]; then
+            echo "Required secrets/vars not configured — skipping dbt Cloud CI."
+            exit 0
+          fi
+
           RESPONSE=$(curl -s -X POST \
             -H "Authorization: Token ${{ secrets.DBT_CLOUD_API_TOKEN }}" \
             -H "Content-Type: application/json" \

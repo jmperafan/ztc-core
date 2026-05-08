@@ -42,6 +42,12 @@ jobs:
       - name: Download production manifest from dbt Cloud
         id: fetch-manifest
         run: |
+          if [ -z "${{ vars.DBT_CLOUD_BASE_URL }}" ] || [ -z "${{ secrets.DBT_CLOUD_API_TOKEN }}" ] || [ -z "${{ secrets.DBT_CLOUD_ACCOUNT_ID }}" ] || [ -z "${{ secrets.DBT_CLOUD_PROD_JOB_ID }}" ]; then
+            echo "Required secrets/vars not configured — skipping dbt Bouncer."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           LATEST_RUN=$(curl -s \
             -H "Authorization: Token ${{ secrets.DBT_CLOUD_API_TOKEN }}" \
             "${{ vars.DBT_CLOUD_BASE_URL }}/api/v2/accounts/${{ secrets.DBT_CLOUD_ACCOUNT_ID }}/runs/?job_definition_id=${{ secrets.DBT_CLOUD_PROD_JOB_ID }}&status=10&order_by=-finished_at&limit=1")

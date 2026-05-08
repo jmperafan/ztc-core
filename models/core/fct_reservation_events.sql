@@ -26,7 +26,9 @@ WITH reservations AS (
 ),
 
 member_bridge AS (
-    SELECT reservation_id, member_id
+    SELECT
+        reservation_id,
+        member_id
     FROM {{ ref('bridge_member_reservations') }}
 ),
 
