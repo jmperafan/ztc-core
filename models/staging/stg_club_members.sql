@@ -4,7 +4,7 @@ WITH source AS (
 
 renamed AS (
     SELECT
-        clublidnummer AS member_id
+        clublidnummer AS member_id,
         postcode AS post_code,
         woonplaats AS city,
         land AS country,
@@ -38,3 +38,5 @@ renamed AS (
         TO_DATE(lid_sinds, 'DD/MM/YYYY') AS member_since
     FROM source
 )
+
+SELECT * FROM renamed
