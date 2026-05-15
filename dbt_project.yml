@@ -12,11 +12,11 @@ profile: 'ztc_core'
 require-dbt-version: ">=1.8.0"
 
 # ── File-path configuration (unchanged) ──────────────────────────────────────
-model-paths:    ["models"]
+model-paths: ["models"]
 analysis-paths: ["analyses"]
-test-paths:     ["tests"]
-seed-paths:     ["seeds"]
-macro-paths:    ["macros"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
 
 clean-targets:
@@ -29,12 +29,12 @@ clean-targets:
 # ──────────────────────────────────────────────────────────────────────────────
 vars:
   # Override at runtime:  DBT_START_DATE=2023-01-01 dbt run
-  start_date:       "{{ env_var('DBT_START_DATE', '2022-01-01') }}"
+  start_date: "{{ env_var('DBT_START_DATE', '2022-01-01') }}"
   watermark_schema: watermark
-  watermark_table:  dbt_high_watermark
-  opening_time:     "{{ env_var('ZTC_OPENING_TIME', '08:00:00') }}"
-  closing_time:     "{{ env_var('ZTC_CLOSING_TIME', '23:00:00') }}"
-  court_numbers:    [1, 2, 3, 4, 5]
+  watermark_table: dbt_high_watermark
+  opening_time: "{{ env_var('ZTC_OPENING_TIME', '08:00:00') }}"
+  closing_time: "{{ env_var('ZTC_CLOSING_TIME', '23:00:00') }}"
+  court_numbers: [1, 2, 3, 4, 5]
   # Each entry is [start_date, end_date] for a closed winter period.
   # Add a new pair each season; the is_winter_break macro iterates over this list.
   winter_breaks:
@@ -52,7 +52,7 @@ models:
     +static_analysis: strict
     +persist_docs:             # propagates model/column descriptions to Snowflake
       relation: true
-      columns:  true
+      columns: true
 
     # ── 3a. STAGING LAYER ────────────────────────────────────────────────────
     # private: only models in this project can ref staging models
@@ -87,8 +87,10 @@ models:
         select: ["TRANSFORMER"]
       +meta:
         owner: "data-engineering"
-        sla:   "daily"
+        sla: "daily"
 
 snapshots:
   ztc_core:
     +group: analytics_engineering
+flags:
+  require_generic_test_arguments_property: true
