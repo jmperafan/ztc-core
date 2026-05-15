@@ -36,7 +36,7 @@ renamed AS (
 
 final AS (
     SELECT
-        {{ dbt_utils.generate_surrogate_key(['court_number', 'reservation_date', 'start_time']) }} AS reservation_id,
+        {{ dbt_utils.generate_surrogate_key(['court_number', 'reservation_date', 'start_time']) }} AS reservation_id,  -- noqa: TMP,PRS,LT02,LT05
         reservation_date,
         start_time,
         end_time,

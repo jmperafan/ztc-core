@@ -41,7 +41,9 @@ WITH reservations AS (
 ),
 
 member_bridge AS (
-    SELECT reservation_id, member_id
+    SELECT
+        reservation_id,
+        member_id
     FROM {{ ref('bridge_member_reservations') }}
 ),
 
@@ -94,8 +96,9 @@ final AS (
     LEFT JOIN member_bridge AS b ON r.reservation_id = b.reservation_id
     LEFT JOIN member_profiles AS p ON b.member_id = p.member_id
     LEFT JOIN weather AS w
-        ON r.reservation_date = w.weather_date
-        AND r.start_hour = w.weather_hour
+        ON
+            r.reservation_date = w.weather_date
+            AND r.start_hour = w.weather_hour
 )
 
 SELECT * FROM final
