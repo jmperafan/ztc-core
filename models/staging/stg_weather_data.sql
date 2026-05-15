@@ -1,5 +1,5 @@
 WITH source AS (
-    SELECT * FROM 
+    SELECT * FROM {{ source('ztc', 'weather_data') }}
 ),
 
 renamed AS (
