@@ -1,10 +1,11 @@
 name: "dbt Cloud CI"
 
 # ----------------------------------------------------------------------------
-# Approach: trigger a dbt Cloud CI job via the API and poll until complete.
+# Approach: run a dbt platform CI job for every PR via the official
+# dbt Labs action, and post the result back as a PR comment.
 #
 # This is the hard gate: it verifies that the SQL actually runs without errors
-# against real data. The dbt Cloud job should be configured with:
+# against real data. The dbt platform job should be configured with:
 #   - Commands:              dbt build --select state:modified+
 #   - Defer to production:   enabled (points to your production job)
 #
@@ -18,9 +19,9 @@ name: "dbt Cloud CI"
 # Failures here mean the SQL errored or a dbt test failed.
 #
 # Required secrets:
-#   DBT_CLOUD_API_TOKEN    — dbt Cloud personal or service account token
-#   DBT_CLOUD_ACCOUNT_ID   — numeric account ID from the dbt Cloud URL
-#   DBT_CLOUD_CI_JOB_ID    — job ID of your CI job in dbt Cloud
+#   DBT_CLOUD_API_TOKEN    — dbt platform personal or service account token
+#   DBT_CLOUD_ACCOUNT_ID   — numeric account ID
+#   DBT_CLOUD_CI_JOB_ID    — job ID of your CI job
 #
 # Required variables:
 #   DBT_CLOUD_BASE_URL     — e.g. https://de392.us1.dbt.com (no trailing slash)
@@ -30,56 +31,52 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   dbt-cloud-ci:
     name: dbt Cloud CI
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
 
     steps:
-      - name: Trigger dbt Cloud CI job
-        id: trigger
+      - name: Check secrets
+        id: check
         run: |
-          if [ -z "${{ vars.DBT_CLOUD_BASE_URL }}" ] || [ -z "${{ secrets.DBT_CLOUD_API_TOKEN }}" ] || [ -z "${{ secrets.DBT_CLOUD_ACCOUNT_ID }}" ] || [ -z "${{ secrets.DBT_CLOUD_CI_JOB_ID }}" ]; then
+          if [ -z "${{ vars.DBT_CLOUD_BASE_URL }}" ] || [ -z "${{ secrets.DBT_CLOUD_API_TOKEN }}" ] || [ -z "${{ vars.DBT_CLOUD_ACCOUNT_ID }}" ] || [ -z "${{ vars.DBT_CLOUD_CI_JOB_ID }}" ]; then
             echo "Required secrets/vars not configured — skipping dbt Cloud CI."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          RESPONSE=$(curl -s -X POST \
-            -H "Authorization: Token ${{ secrets.DBT_CLOUD_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"cause\":\"PR #${{ github.event.pull_request.number }}\",\"schema_override\":\"ci_pr_${{ github.event.pull_request.number }}\",\"git_sha\":\"${{ github.event.pull_request.head.sha }}\"}" \
-            "${{ vars.DBT_CLOUD_BASE_URL }}/api/v2/accounts/${{ secrets.DBT_CLOUD_ACCOUNT_ID }}/jobs/${{ secrets.DBT_CLOUD_CI_JOB_ID }}/run/")
+      - name: Run dbt CI job
+        if: steps.check.outputs.skip != 'true'
+        uses: dbt-labs/dbt-cloud-job-action@v6.0.0
+        with:
+          dbt_cloud_url:        ${{ vars.DBT_CLOUD_BASE_URL }}
+          dbt_cloud_token:      ${{ secrets.DBT_CLOUD_API_TOKEN }}
+          dbt_cloud_account_id: ${{ vars.DBT_CLOUD_ACCOUNT_ID }}
+          dbt_cloud_job_id:     ${{ vars.DBT_CLOUD_CI_JOB_ID }}
+          git_sha:              ${{ github.event.pull_request.head.sha }}
+          schema_override:      ci_pr_${{ github.event.pull_request.number }}
+          cause:                "CI — PR #${{ github.event.pull_request.number }}"
+          failure_on_error:     true
+          interval:             30
 
-          echo "API response: $RESPONSE"
-
-          RUN_ID=$(echo "$RESPONSE" | jq -r '.data.id')
-          RUN_URL=$(echo "$RESPONSE" | jq -r '.data.href')
-
-          if [ "$RUN_ID" = "null" ] || [ -z "$RUN_ID" ]; then
-            echo "Failed to trigger dbt Cloud run. See API response above."
-            exit 1
-          fi
-
-          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
-          echo "Triggered run $RUN_ID — $RUN_URL"
-
-      - name: Poll until complete
-        run: |
-          RUN_ID="${{ steps.trigger.outputs.run_id }}"
-
-          while true; do
-            STATUS=$(curl -sf \
-              -H "Authorization: Token ${{ secrets.DBT_CLOUD_API_TOKEN }}" \
-              "${{ vars.DBT_CLOUD_BASE_URL }}/api/v2/accounts/${{ secrets.DBT_CLOUD_ACCOUNT_ID }}/runs/$RUN_ID/" \
-              | jq -r '.data.status')
-
-            echo "Run status: $STATUS"
-
-            case $STATUS in
-              10) echo "Run succeeded"; exit 0 ;;
-              20) echo "Run errored"; exit 1 ;;
-              30) echo "Run cancelled"; exit 1 ;;
-            esac
-
-            sleep 30
-          done
+      - name: Post result to PR
+        if: always() && steps.check.outputs.skip != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ job.status }}'
+            const icon   = status === 'success' ? '✅' : '❌'
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `${icon} dbt Cloud CI job **${status}**.`
+            })
