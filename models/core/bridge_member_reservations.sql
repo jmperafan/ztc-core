@@ -4,7 +4,7 @@ reservations AS (
     SELECT
         reservation_id,
         member_id
-    FROM {{ ref("stg_reservations") }}
+    FROM {{ ref("stg_reservations")
     WHERE member_id IS NOT NULL
 ),
 
