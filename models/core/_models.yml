@@ -240,8 +240,9 @@ models:
     columns:
       - name: reservation_id
         data_type: varchar
-        description: Foreign key to fct_reservations.
+        description: Foreign key to fct_reservations. Primary key of this bridge.
         data_tests:
+          - unique
           - not_null
       - name: member_id
         data_type: number
@@ -292,114 +293,168 @@ models:
         description: Duration of the reservation in minutes.
 
   - name: fct_reservation_events
+    config:
+      contract:
+        enforced: true
     description: >
       One row per actual court booking enriched with member demographics.
       Microbatch incremental (batch_size=month, lookback=3).
     columns:
       - name: reservation_id
+        data_type: varchar
         description: Surrogate key for the reservation. Primary key.
         data_tests:
           - unique
           - not_null
       - name: reservation_date
+        data_type: date
         description: Calendar date of the booking.
         data_tests:
           - not_null
       - name: court_number
+        data_type: number
         description: Tennis court number (1–5).
         data_tests:
           - not_null
       - name: start_time
+        data_type: time
         description: Start time of the reservation (TIME, 24-hour).
       - name: end_time
+        data_type: time
         description: End time of the reservation (TIME, 24-hour).
       - name: duration_in_mins
+        data_type: number
         description: Duration of the reservation in minutes.
       - name: day_of_week
+        data_type: number
         description: Day-of-week integer (1 = Sunday, 7 = Saturday in Snowflake).
       - name: day_of_week_name
+        data_type: varchar
         description: Full day name (e.g. Monday).
       - name: start_hour
+        data_type: number
         description: Hour component of start_time (0–23).
       - name: member_id
+        data_type: number
         description: Foreign key to dim_members. NULL for guest bookings.
       - name: gender
+        data_type: varchar
         description: Member's gender. NULL for unlinked bookings.
       - name: age_group
+        data_type: number
         description: Member's age group bucket. NULL for unlinked bookings.
       - name: city
+        data_type: varchar
         description: Member's city of residence. NULL for unlinked bookings.
       - name: current_type_of_membership
+        data_type: varchar
         description: Name of the member's active membership tier. NULL for unlinked bookings.
       - name: is_club_member
+        data_type: boolean
         description: True if the member holds an active club membership.
       - name: is_knltb_member
+        data_type: boolean
         description: True if the member is registered with the national tennis federation.
 
   - name: fct_daily_court_stats
+    config:
+      contract:
+        enforced: true
     description: >
       Daily aggregation of court usage per court. One row per court_number × reservation_date,
       covering non-winter-break days only.
     columns:
       - name: daily_court_key
+        data_type: varchar
         description: Surrogate key — CONCAT(court_number, '_', reservation_date). Primary key.
         data_tests:
           - unique
           - not_null
       - name: court_number
+        data_type: number
         description: Tennis court number (1–5).
         data_tests:
           - not_null
       - name: reservation_date
+        data_type: date
         description: Calendar date of the aggregated slots.
         data_tests:
           - not_null
       - name: booked_slots
+        data_type: number
         description: Number of minute-level slots marked as booked.
       - name: available_slots
+        data_type: number
         description: Number of minute-level slots marked as available.
       - name: total_playable_slots
+        data_type: number
         description: Total booked + available slots (excludes closed hours).
       - name: booked_minutes
+        data_type: number
         description: Total minutes booked on this court on this date.
       - name: available_minutes
+        data_type: number
         description: Total playable minutes on this court on this date.
       - name: utilization_pct
+        data_type: number
         description: Share of playable minutes that were booked (%).
 
   - name: fct_hourly_weather_usage
+    config:
+      contract:
+        enforced: true
     description: >
       One row per court × date × hour. Court usage aggregated to hourly grain
       and joined with weather observations for that hour.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - reservation_date
+              - start_hour
+              - court_number
     columns:
       - name: reservation_date
+        data_type: date
         description: Calendar date of the hour.
         data_tests:
           - not_null
       - name: start_hour
+        data_type: number
         description: Hour of day (0–23).
         data_tests:
           - not_null
       - name: court_number
+        data_type: number
         description: Tennis court number (1–5).
         data_tests:
           - not_null
       - name: booked_slots
+        data_type: number
         description: Number of minute-level slots marked as booked in this hour.
       - name: available_slots
+        data_type: number
         description: Number of minute-level slots available in this hour.
       - name: utilization_pct
+        data_type: number
         description: Share of playable slots in this hour that were booked (%).
       - name: temperature
+        data_type: float
         description: Air temperature in °C.
       - name: precipitation
+        data_type: float
         description: Precipitation in mm.
       - name: wind_speed
+        data_type: float
         description: Wind speed in km/h.
       - name: ideal_weather
+        data_type: boolean
         description: True when conditions are ideal for tennis (temp 10–35°C, no rain, wind ≤ 20 km/h).
 
   - name: fct_reservations_hwm
+    config:
+      contract:
+        enforced: true
     description: >
       One row per actual court booking enriched with member demographics and weather.
       Built with the High Watermark pattern: the upper-bound timestamp is stored in
@@ -407,49 +462,69 @@ models:
       exclusive and collectively exhaustive.
     columns:
       - name: reservation_id
+        data_type: varchar
         description: Surrogate key for the reservation. Primary key.
         data_tests:
           - unique
           - not_null
       - name: reservation_date
+        data_type: date
         description: Calendar date of the booking.
         data_tests:
           - not_null
       - name: court_number
+        data_type: number
         description: Tennis court number (1–5).
         data_tests:
           - not_null
       - name: start_time
+        data_type: time
         description: Start time of the reservation (TIME, 24-hour).
       - name: end_time
+        data_type: time
         description: End time of the reservation (TIME, 24-hour).
       - name: duration_in_mins
+        data_type: number
         description: Duration of the reservation in minutes.
       - name: day_of_week
+        data_type: number
         description: Day-of-week integer (1 = Sunday, 7 = Saturday in Snowflake).
       - name: day_of_week_name
+        data_type: varchar
         description: Full day name (e.g. Monday).
       - name: start_hour
+        data_type: number
         description: Hour component of start_time (0–23).
       - name: member_id
+        data_type: number
         description: Foreign key to dim_members. NULL for guest bookings.
       - name: gender
+        data_type: varchar
         description: Member's gender. NULL for unlinked bookings.
       - name: age_group
+        data_type: number
         description: Member's age group bucket. NULL for unlinked bookings.
       - name: city
+        data_type: varchar
         description: Member's city of residence. NULL for unlinked bookings.
       - name: current_type_of_membership
+        data_type: varchar
         description: Member's active membership tier. NULL for unlinked bookings.
       - name: is_club_member
+        data_type: boolean
         description: True if the member holds an active club membership.
       - name: is_knltb_member
+        data_type: boolean
         description: True if the member is registered with the national tennis federation.
       - name: temperature
+        data_type: float
         description: Air temperature in °C at the hour of the booking.
       - name: precipitation
+        data_type: float
         description: Precipitation in mm at the hour of the booking.
       - name: wind_speed
+        data_type: float
         description: Wind speed in km/h at the hour of the booking.
       - name: ideal_weather
+        data_type: boolean
         description: True when tennis conditions were ideal (temp 10–35°C, no rain, wind ≤ 20 km/h).
