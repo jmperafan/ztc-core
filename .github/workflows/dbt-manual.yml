@@ -58,3 +58,4 @@ jobs:
           steps_override:       ${{ github.event.inputs.steps_override }}
           failure_on_error:     true
           interval:             30
+          fetch_catalog:        false

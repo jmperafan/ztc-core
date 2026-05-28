@@ -66,6 +66,9 @@ jobs:
           cause:                "CI — PR #${{ github.event.pull_request.number }}"
           failure_on_error:     true
           interval:             30
+          # The default fetch_catalog: true returns 404 because this CI job
+          # doesn't run `dbt docs generate`, so no catalog.json exists.
+          fetch_catalog:        false
 
       - name: Post result to PR
         if: always() && steps.check.outputs.skip != 'true'
