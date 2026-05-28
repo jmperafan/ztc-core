@@ -1,13 +1,18 @@
 name: "Pre-commit"
 
 # ----------------------------------------------------------------------------
-# Approach: local tooling, no credentials required.
+# Approach: local tooling, no credentials required for most hooks.
 #
 # Pre-commit hooks catch formatting issues (trailing whitespace, missing
 # newlines, YAML syntax, Python formatting) before code is reviewed.
 #
-# This is the cheapest CI check — it runs entirely without a database or
-# cloud account. Failures here mean the code isn't ready to review yet.
+# The dbt-checkpoint hooks need target/manifest.json to evaluate models
+# and sources. Instead of running `dbt parse` (which needs a Snowflake
+# connection), we download the manifest from the latest successful
+# production run via the dbt Cloud API — same pattern as bouncer.yml.
+#
+# If dbt Cloud secrets/vars aren't configured, the manifest-aware hooks
+# are skipped via the SKIP env var and the rest of pre-commit still runs.
 # ----------------------------------------------------------------------------
 
 on:
@@ -31,5 +36,36 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
+      - name: Download production manifest from dbt Cloud
+        id: fetch-manifest
+        run: |
+          if [ -z "${{ vars.DBT_CLOUD_BASE_URL }}" ] || [ -z "${{ secrets.DBT_CLOUD_API_TOKEN }}" ] || [ -z "${{ vars.DBT_CLOUD_ACCOUNT_ID }}" ] || [ -z "${{ vars.DBT_CLOUD_PROD_JOB_ID }}" ]; then
+            echo "Required secrets/vars not configured — manifest-aware hooks will be skipped."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          LATEST_RUN=$(curl -s \
+            -H "Authorization: Token ${{ secrets.DBT_CLOUD_API_TOKEN }}" \
+            "${{ vars.DBT_CLOUD_BASE_URL }}/api/v2/accounts/${{ vars.DBT_CLOUD_ACCOUNT_ID }}/runs/?job_definition_id=${{ vars.DBT_CLOUD_PROD_JOB_ID }}&status=10&order_by=-finished_at&limit=1")
+
+          RUN_ID=$(echo "$LATEST_RUN" | jq -r '.data[0].id')
+
+          if [ "$RUN_ID" = "null" ] || [ -z "$RUN_ID" ]; then
+            echo "No successful production run found — manifest-aware hooks will be skipped."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          mkdir -p target
+          curl -sf \
+            -H "Authorization: Token ${{ secrets.DBT_CLOUD_API_TOKEN }}" \
+            "${{ vars.DBT_CLOUD_BASE_URL }}/api/v2/accounts/${{ vars.DBT_CLOUD_ACCOUNT_ID }}/runs/$RUN_ID/artifacts/manifest.json" \
+            -o target/manifest.json
+
+          echo "Downloaded manifest from run $RUN_ID"
+
       - name: Run pre-commit
         uses: pre-commit/action@v3.0.1
+        env:
+          SKIP: ${{ steps.fetch-manifest.outputs.skip == 'true' && 'check-model-has-description,check-model-has-tests,check-model-has-properties-file,check-model-columns-have-desc,check-source-has-description,check-source-has-freshness,check-source-columns-have-desc,check-macro-has-description' || '' }}
