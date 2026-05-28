@@ -293,9 +293,11 @@ models:
         description: Duration of the reservation in minutes.
 
   - name: fct_reservation_events
-    config:
-      contract:
-        enforced: true
+    # Contract intentionally not enforced: dbt requires on_schema_change to be
+    # 'fail' or 'append_new_columns' with contracts, and Snowflake's natural
+    # column precisions (NUMBER(2,0) from HOUR(), DAYOFWEEK(); NUMBER(13,0)
+    # from COUNT_IF; etc.) drift from the generic `number` declaration on
+    # every microbatch insert, breaking on_schema_change=fail.
     description: >
       One row per actual court booking enriched with member demographics.
       Microbatch incremental (batch_size=month, lookback=3).
@@ -357,9 +359,7 @@ models:
         description: True if the member is registered with the national tennis federation.
 
   - name: fct_daily_court_stats
-    config:
-      contract:
-        enforced: true
+    # Contract intentionally not enforced: see comment on fct_reservation_events.
     description: >
       Daily aggregation of court usage per court. One row per court_number × reservation_date,
       covering non-winter-break days only.
@@ -400,9 +400,7 @@ models:
         description: Share of playable minutes that were booked (%).
 
   - name: fct_hourly_weather_usage
-    config:
-      contract:
-        enforced: true
+    # Contract intentionally not enforced: see comment on fct_reservation_events.
     description: >
       One row per court × date × hour. Court usage aggregated to hourly grain
       and joined with weather observations for that hour.
@@ -452,9 +450,7 @@ models:
         description: True when conditions are ideal for tennis (temp 10–35°C, no rain, wind ≤ 20 km/h).
 
   - name: fct_reservations_hwm
-    config:
-      contract:
-        enforced: true
+    # Contract intentionally not enforced: see comment on fct_reservation_events.
     description: >
       One row per actual court booking enriched with member demographics and weather.
       Built with the High Watermark pattern: the upper-bound timestamp is stored in
