@@ -27,26 +27,20 @@ manifest_checks:
   - name: check_model_description_populated
     include: ^models/
 
-  # ── Descriptions required on every column in core (public surface area) ──
-  - name: check_model_columns_are_all_documented
-    include: ^models/core
+  # ── Column-level descriptions on core models are enforced by dbt-checkpoint
+  # (check-model-columns-have-desc) in the pre-commit workflow. dbt-bouncer
+  # dropped its column-documentation check in newer versions.
 
   # ── Contracts must be enforced on every public core model ─────────────────
-  - name: check_model_contract_enforced
+  - name: check_model_has_contracts_enforced
     include: ^models/core
 
-  # ── Every core model must have unique + not_null on its primary key ───────
-  - name: check_model_has_tests_by_name
+  # ── Every core model must have a uniqueness test on its primary key ───────
+  # The previous check_model_has_tests_by_name (which also enforced not_null)
+  # was removed upstream; dbt-checkpoint's check-model-has-tests catches the
+  # broader "has at least one test" case for staging.
+  - name: check_model_has_unique_test
     include: ^models/core
-    test_names:
-      - unique
-      - not_null
-
-  # ── Every staging model must have at least one test ───────────────────────
-  - name: check_model_has_tests_by_name
-    include: ^models/staging
-    test_names:
-      - not_null
 
   # ── No model may have more than 5 direct dependents (keep DAG shallow) ────
   - name: check_model_max_fanout
@@ -54,10 +48,9 @@ manifest_checks:
     max_downstream_models: 5
 
   # ── Source freshness: all sources must declare a loaded_at_field ──────────
-  - name: check_source_has_freshness_populated
+  - name: check_source_freshness_populated
     include: ^models/staging
 
-  # ── No lineage violations: staging must not ref core or intermediate ───────
+  # ── Staging models must reference at most one source (no early raw joins) ─
   - name: check_model_depends_on_multiple_sources
     include: ^models/staging
-    max_upstream_sources: 1

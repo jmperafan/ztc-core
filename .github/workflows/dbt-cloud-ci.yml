@@ -55,7 +55,7 @@ jobs:
 
       - name: Run dbt CI job
         if: steps.check.outputs.skip != 'true'
-        uses: dbt-labs/dbt-cloud-job-action@v6.0.0
+        uses: dbt-labs/dbt-cloud-job-action@v7.1.0
         with:
           dbt_cloud_url:        ${{ vars.DBT_CLOUD_BASE_URL }}
           dbt_cloud_token:      ${{ secrets.DBT_CLOUD_API_TOKEN }}
@@ -66,6 +66,9 @@ jobs:
           cause:                "CI — PR #${{ github.event.pull_request.number }}"
           failure_on_error:     true
           interval:             30
+          # The default fetch_catalog: true returns 404 because this CI job
+          # doesn't run `dbt docs generate`, so no catalog.json exists.
+          fetch_catalog:        false
 
       - name: Post result to PR
         if: always() && steps.check.outputs.skip != 'true'

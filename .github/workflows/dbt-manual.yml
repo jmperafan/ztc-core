@@ -48,7 +48,7 @@ jobs:
 
       - name: Trigger and poll dbt job
         if: steps.check.outputs.skip != 'true'
-        uses: dbt-labs/dbt-cloud-job-action@v6.0.0
+        uses: dbt-labs/dbt-cloud-job-action@v7.1.0
         with:
           dbt_cloud_url:        ${{ vars.DBT_CLOUD_BASE_URL }}
           dbt_cloud_token:      ${{ secrets.DBT_CLOUD_API_TOKEN }}
@@ -58,3 +58,4 @@ jobs:
           steps_override:       ${{ github.event.inputs.steps_override }}
           failure_on_error:     true
           interval:             30
+          fetch_catalog:        false
