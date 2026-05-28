@@ -73,9 +73,7 @@ jobs:
           # instead of merging into the existing per-PR CI schema. Without
           # this, repeated runs on the same PR hit `on_schema_change=fail`
           # when the model's column types differ from the persisted target.
-          steps_override:       |
-            - dbt deps
-            - dbt build --select state:modified+ --full-refresh --fail-fast
+          steps_override: '["dbt deps", "dbt build --select state:modified+ --full-refresh --fail-fast"]'
 
       - name: Post result to PR
         if: always() && steps.check.outputs.skip != 'true'
