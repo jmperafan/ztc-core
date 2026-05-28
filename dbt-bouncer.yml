@@ -51,7 +51,6 @@ manifest_checks:
   - name: check_source_freshness_populated
     include: ^models/staging
 
-  # ── No lineage violations: staging must not ref core or intermediate ───────
+  # ── Staging models must reference at most one source (no early raw joins) ─
   - name: check_model_depends_on_multiple_sources
     include: ^models/staging
-    max_upstream_sources: 1
