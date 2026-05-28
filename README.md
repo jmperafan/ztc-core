@@ -50,6 +50,15 @@ dbt build --select +dim_members    # dim_members and all upstream
 
 [dbt-coves](https://github.com/datacoves/dbt-coves) introspects Snowflake and generates source/model YAML scaffolding. Run it when onboarding new tables — not on every commit. Connection details come from the active dbt profile, so make sure your `.env` is loaded first.
 
+dbt-coves only supports Python `>=3.9,<3.13`, so install it in an isolated env via [pipx](https://pipx.pypa.io) rather than the main project:
+
+```bash
+brew install pipx python@3.12        # one-time prereqs
+pipx install dbt-coves --python python3.12
+```
+
+Then:
+
 ```bash
 dbt-coves generate sources       # scaffold source YAML for new tables
 dbt-coves generate properties    # scaffold model property YAML

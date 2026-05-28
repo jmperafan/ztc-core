@@ -83,17 +83,28 @@ repos:
   - repo: https://github.com/dbt-checkpoint/dbt-checkpoint
     rev: v2.0.9
     hooks:
-      # Models
+      # Models — scope to models/ so tests/ and snapshots/ aren't treated as models
       - id: check-model-has-description
+        files: ^models/.+\.sql$
       - id: check-model-has-tests
+        files: ^models/.+\.sql$
       - id: check-model-has-properties-file
+        files: ^models/.+\.sql$
       - id: check-model-columns-have-desc
+        files: ^models/.+\.sql$
       # SQL style — these don't need the manifest
       - id: check-script-ref-and-source
+        files: ^models/.+\.sql$
       - id: check-script-has-no-table-name
-      # Sources
+        files: ^models/.+\.sql$
+      # Sources — scope to models/ YAML where source blocks live
       - id: check-source-has-description
+        files: ^models/.+\.ya?ml$
       - id: check-source-has-freshness
+        files: ^models/.+\.ya?ml$
+        args: [--freshness, error_after, warn_after, --]
       - id: check-source-columns-have-desc
+        files: ^models/.+\.ya?ml$
       # Macros
       - id: check-macro-has-description
+        files: ^macros/.+\.sql$
