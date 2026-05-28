@@ -2,7 +2,7 @@ WITH source AS (
     SELECT * FROM {{ source('ztc', 'club_members') }}
 ),
 
-renamed AS (
+final AS (
     SELECT
         clublidnummer AS member_id,
         postcode AS post_code,
@@ -39,4 +39,4 @@ renamed AS (
     FROM source
 )
 
-SELECT * FROM renamed
+SELECT * FROM final

@@ -1,6 +1,12 @@
-WITH deduped AS (
+WITH
+
+source AS (
+    SELECT * FROM {{ source('ztc', 'court_usage') }}
+),
+
+deduped AS (
     SELECT *
-    FROM {{ source('ztc', 'court_usage') }}
+    FROM source
     QUALIFY ROW_NUMBER() OVER (
         PARTITION BY startdatum, banen, begintijd
         ORDER BY 1
