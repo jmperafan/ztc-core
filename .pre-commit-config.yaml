@@ -83,15 +83,17 @@ repos:
   - repo: https://github.com/dbt-checkpoint/dbt-checkpoint
     rev: v2.0.9
     hooks:
-      # Models — scope to models/ so tests/ and snapshots/ aren't treated as models
+      # Models — scope to models/ and include YAML so the hooks can read
+      # property files directly instead of relying on the manifest (which is
+      # always stale for new models in CI's prod-manifest fetch).
       - id: check-model-has-description
-        files: ^models/.+\.sql$
+        files: ^models/.+\.(sql|ya?ml)$
       - id: check-model-has-tests
-        files: ^models/.+\.sql$
+        files: ^models/.+\.(sql|ya?ml)$
       - id: check-model-has-properties-file
-        files: ^models/.+\.sql$
+        files: ^models/.+\.(sql|ya?ml)$
       - id: check-model-columns-have-desc
-        files: ^models/.+\.sql$
+        files: ^models/.+\.(sql|ya?ml)$
       # SQL style — these don't need the manifest
       - id: check-script-ref-and-source
         files: ^models/.+\.sql$
