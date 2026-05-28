@@ -74,7 +74,8 @@ jobs:
           # this, repeated runs on the same PR hit `on_schema_change=fail`
           # when the model's column types differ from the persisted target.
           steps_override:       |
-            ["dbt deps", "dbt build --select state:modified+ --full-refresh --fail-fast"]
+            - dbt deps
+            - dbt build --select state:modified+ --full-refresh --fail-fast
 
       - name: Post result to PR
         if: always() && steps.check.outputs.skip != 'true'
