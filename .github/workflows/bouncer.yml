@@ -38,8 +38,13 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: pip install -r requirements-dev.txt dbt-snowflake
+      - name: Install bouncer deps
+        run: pip install -r requirements-dev.txt
+
+      - name: Install dbt Fusion
+        run: |
+          curl -fsSL https://public.cdn.getdbt.com/fs/install/install.sh | sh -s -- --update
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Configure dbt profile and parse
         id: parse

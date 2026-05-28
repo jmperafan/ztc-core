@@ -10,9 +10,12 @@ name: "Pre-commit"
 # they haven't been deployed yet. Running `dbt parse` here gives pre-commit
 # a manifest that reflects exactly what's on the PR branch.
 #
-# dbt parse is fast (no warehouse round-trip) but still needs a profile that
-# points at Snowflake — Fusion strict-validates connection settings even
-# during parse.
+# dbt Fusion is used here (not dbt-core) because the project relies on
+# vars.yml which is a Fusion-only feature; dbt-core's parser doesn't see
+# those vars and any var() reference fails with NoneType errors.
+# dbt parse is fast (no warehouse round-trip) but still needs a profile
+# that points at Snowflake — Fusion strict-validates the profile during
+# parse.
 #
 # If the Snowflake secrets/vars aren't configured the manifest-aware hooks
 # are skipped via the SKIP env var and the rest of pre-commit still runs.
@@ -36,8 +39,13 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: pip install -r requirements-dev.txt dbt-snowflake
+      - name: Install pre-commit deps
+        run: pip install -r requirements-dev.txt
+
+      - name: Install dbt Fusion
+        run: |
+          curl -fsSL https://public.cdn.getdbt.com/fs/install/install.sh | sh -s -- --update
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Configure dbt profile and parse
         id: parse
