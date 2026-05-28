@@ -105,6 +105,13 @@ models:
       Court usage aggregated to hourly grain (court × date × hour), excluding
       winter-break and closed hours, joined with hourly weather observations
       from fct_weather. Feeds the thin fct_hourly_weather_usage mart.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - reservation_date
+              - start_hour
+              - court_number
 
   - name: int_reservation_events
     description: >
@@ -112,9 +119,21 @@ models:
       bridge_member_reservations and dim_members. Adds day_of_week,
       day_of_week_name, and start_hour. Feeds the thin fct_reservation_events
       microbatch mart.
+    columns:
+      - name: reservation_id
+        description: Surrogate key for the reservation. Primary key.
+        data_tests:
+          - unique
+          - not_null
 
   - name: int_reservations_hwm
     description: >
       Actual court bookings enriched with member demographics and the hourly
       weather observation at the booking's date/hour. Feeds the thin
       fct_reservations_hwm mart, which adds the High Watermark window filter.
+    columns:
+      - name: reservation_id
+        description: Surrogate key for the reservation. Primary key.
+        data_tests:
+          - unique
+          - not_null

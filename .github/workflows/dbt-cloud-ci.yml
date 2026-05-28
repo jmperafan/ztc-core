@@ -69,6 +69,13 @@ jobs:
           # The default fetch_catalog: true returns 404 because this CI job
           # doesn't run `dbt docs generate`, so no catalog.json exists.
           fetch_catalog:        false
+          # NOTE: per-PR CI schemas persist between runs, which can trigger
+          # `on_schema_change=fail` on incremental models if column types
+          # drift between two runs of the same PR. The fix is to enable
+          # `--full-refresh` (or drop the per-PR schema) in the dbt Cloud
+          # job's step configuration; the trigger-run API rejects
+          # `steps_override` for this job (HTTP 400), so it can't be set
+          # from the workflow file.
 
       - name: Post result to PR
         if: always() && steps.check.outputs.skip != 'true'
