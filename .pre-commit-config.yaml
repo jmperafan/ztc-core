@@ -76,3 +76,24 @@ repos:
         exclude: ^snapshots/
       - id: sqlfluff-fix
         exclude: ^snapshots/
+
+  # dbt-checkpoint: static checks on dbt models, sources, and macros.
+  # The manifest-aware hooks expect target/manifest.json — run `dbt parse`
+  # locally (or `dbt build`) before committing if the hooks complain.
+  - repo: https://github.com/dbt-checkpoint/dbt-checkpoint
+    rev: v2.0.9
+    hooks:
+      # Models
+      - id: check-model-has-description
+      - id: check-model-has-tests
+      - id: check-model-has-properties-file
+      - id: check-model-columns-have-desc
+      # SQL style — these don't need the manifest
+      - id: check-script-ref-and-source
+      - id: check-script-has-no-table-name
+      # Sources
+      - id: check-source-has-description
+      - id: check-source-has-freshness
+      - id: check-source-columns-have-desc
+      # Macros
+      - id: check-macro-has-description
