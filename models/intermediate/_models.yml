@@ -40,11 +40,12 @@ models:
 
   - name: int_court_usage
     description: >
-      Gap-filled court usage. Starts from actual reservations in fct_reservations
+      Gap-filled court usage. Starts from actual reservations in stg_reservations
       and inserts synthetic "Beschikbaar" rows to cover every unbooked slot within
       operating hours (opening_time to closing_time). Also handles days with no
-      bookings at all via the empty_days CTE. The result covers every minute of
-      every operating day per court, and is the direct input for fct_court_usage.
+      bookings at all via the empty_days CTE. The result covers every operating
+      hour of every day per court; closed-hour rows are added downstream in
+      int_court_slots.
     columns:
       - name: reservation_id
         description: >
@@ -70,3 +71,50 @@ models:
         description: >
           Description of the slot. "Niet geboekt" for available gaps;
           original event_description for actual bookings.
+
+  - name: int_court_slots
+    description: >
+      Every court-slot of every day, keyed by slot_key (court_number, date,
+      start_time). Unions int_court_usage with morning + evening closed-hour
+      rows and adds slot_key, is_winter_break, and duration_in_mins. This is
+      the logic that used to live in fct_court_usage; the mart is now a thin
+      passthrough.
+    columns:
+      - name: slot_key
+        description: >
+          Surrogate primary key — CONCAT(court_number, '_', reservation_date,
+          '_', start_time). Uniquely identifies a slot.
+        data_tests:
+          - unique
+          - not_null
+
+  - name: int_daily_court_stats
+    description: >
+      Daily aggregation of court usage per court_number × reservation_date,
+      excluding winter-break days. Provides booked/available slot counts and
+      minutes plus utilization_pct. Feeds the thin fct_daily_court_stats mart.
+    columns:
+      - name: daily_court_key
+        description: Surrogate key — CONCAT(court_number, '_', reservation_date).
+        data_tests:
+          - unique
+          - not_null
+
+  - name: int_hourly_weather_usage
+    description: >
+      Court usage aggregated to hourly grain (court × date × hour), excluding
+      winter-break and closed hours, joined with hourly weather observations
+      from fct_weather. Feeds the thin fct_hourly_weather_usage mart.
+
+  - name: int_reservation_events
+    description: >
+      Actual court bookings enriched with member demographics via
+      bridge_member_reservations and dim_members. Adds day_of_week,
+      day_of_week_name, and start_hour. Feeds the thin fct_reservation_events
+      microbatch mart.
+
+  - name: int_reservations_hwm
+    description: >
+      Actual court bookings enriched with member demographics and the hourly
+      weather observation at the booking's date/hour. Feeds the thin
+      fct_reservations_hwm mart, which adds the High Watermark window filter.
