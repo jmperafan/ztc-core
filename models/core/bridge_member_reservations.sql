@@ -13,9 +13,12 @@ members AS (
 ),
 
 final AS (
+    -- Explicit casts pin output types to the contract declared in _models.yml.
+    -- stg_reservations has no contract, so without these the upstream's
+    -- inferred types (REAL/NUMBER) leak through and break contract validation.
     SELECT
-        r.reservation_id,
-        r.member_id
+        CAST(r.reservation_id AS VARCHAR) AS reservation_id,
+        CAST(r.member_id AS NUMBER) AS member_id
     FROM reservations AS r
     INNER JOIN members AS m ON r.member_id = m.member_id
 )
