@@ -9,10 +9,14 @@ macros:
 
   - name: dutch_bool
     description: >
-      Casts a Dutch-language boolean text column to a real BOOLEAN. Maps
-      `ja`/`true`/`1` to TRUE, `nee`/`false`/`0` to FALSE, anything else to
-      NULL. Case-insensitive. Use when normalising source columns from the
-      ZTC reservation system, which stores booleans as Dutch words.
+      Parses Dutch boolean text into a real SQL BOOLEAN. The ZTC reservation
+      system stores yes/no flags as the literal Dutch words `ja` and `nee`,
+      so columns like `clublid` and `bondslid` arrive as VARCHAR. Returns
+      TRUE for `ja`, FALSE for `nee`, NULL for everything else (NULL, empty
+      strings, whitespace, or unrecognised text). Trimming and lowercasing
+      are applied. Deliberately strict: unrecognised values become NULL
+      rather than coercing to FALSE so source-data drift surfaces in
+      downstream tests rather than being silently rewritten.
     arguments:
       - name: column
         type: string
