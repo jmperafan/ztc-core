@@ -32,8 +32,13 @@ manifest_checks:
   # dropped its column-documentation check in newer versions.
 
   # ── Contracts must be enforced on every public core model ─────────────────
+  # The 4 incremental marts are excluded because incremental + contracts +
+  # on_schema_change=fail traps on Snowflake's natural NUMBER(p,s) precisions
+  # drifting from a generic `number` contract declaration. They keep table
+  # materializations.
   - name: check_model_has_contracts_enforced
     include: ^models/core
+    exclude: ^models/core/(fct_reservation_events|fct_reservations_hwm|fct_daily_court_stats|fct_hourly_weather_usage)\.sql$
 
   # ── Every core model must have a uniqueness test on its primary key ───────
   # The previous check_model_has_tests_by_name (which also enforced not_null)
