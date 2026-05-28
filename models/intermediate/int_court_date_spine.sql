@@ -4,7 +4,7 @@ dim_calendar AS (
     SELECT * FROM {{ ref('dim_calendar') }}
 ),
 
-spine AS (
+final AS (
     {%- for court_number in var('court_numbers') -%}
         SELECT
             {{ court_number }} AS court_number,
@@ -14,4 +14,4 @@ spine AS (
     {% endfor %}
 )
 
-SELECT * FROM spine
+SELECT * FROM final

@@ -1,5 +1,7 @@
-WITH fct_reservations AS (
-    SELECT * FROM {{ ref('fct_reservations') }}
+WITH
+
+stg_reservations AS (
+    SELECT * FROM {{ ref('stg_reservations') }}
 ),
 
 int_court_date_spine AS (
@@ -21,7 +23,7 @@ reservations AS (
         end_time,
         reservation_type,
         event_description
-    FROM fct_reservations
+    FROM stg_reservations
     WHERE
         start_time >= TIME '{{ var("opening_time") }}'
         AND end_time <= TIME '{{ var("closing_time") }}'
@@ -111,7 +113,7 @@ empty_days AS (
     WHERE reservations.reservation_type IS NULL
 ),
 
-unioned AS (
+final AS (
     SELECT * FROM reservations
     UNION DISTINCT
     SELECT * FROM first_hour
@@ -123,4 +125,4 @@ unioned AS (
     SELECT * FROM empty_days
 )
 
-SELECT * FROM unioned
+SELECT * FROM final

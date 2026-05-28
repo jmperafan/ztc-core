@@ -2,7 +2,7 @@ WITH source AS (
     SELECT * FROM {{ source('ztc', 'weather_data') }}
 ),
 
-renamed AS (
+final AS (
     SELECT
         TRY_TO_TIMESTAMP_NTZ(datetime) AS datetime,
         temp AS temperature,
@@ -30,4 +30,4 @@ renamed AS (
     FROM source
 )
 
-SELECT * FROM renamed
+SELECT * FROM final

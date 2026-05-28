@@ -1,15 +1,24 @@
 WITH
 
+stg_reservations AS (
+    SELECT * FROM {{ ref('stg_reservations') }}
+),
+
+dim_members AS (
+    SELECT * FROM {{ ref('dim_members') }}
+),
+
 reservations AS (
     SELECT
         reservation_id,
         member_id
-    FROM {{ ref("stg_reservations") }}
+    FROM stg_reservations
     WHERE member_id IS NOT NULL
 ),
 
 members AS (
-    SELECT member_id FROM {{ ref('dim_members') }}
+    SELECT member_id
+    FROM dim_members
 ),
 
 final AS (
