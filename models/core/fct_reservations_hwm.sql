@@ -20,6 +20,13 @@
   )
 }}
 
+{#-
+  Bind the HWM source ref at the top so Fusion's static analysis sees it
+  as a dependency. A bare ref() inside an is_incremental() conditional
+  block isn't always picked up by dbt's dependency inference.
+-#}
+{% set _fct_reservations = ref('fct_reservations') %}
+
 WITH
 
 int_reservations_hwm AS (
@@ -31,8 +38,8 @@ final AS (
 
     {% if is_incremental() %}
         WHERE
-            reservation_date BETWEEN ({{ get_previous_hwm(ref('fct_reservations')) }})
-            AND ({{ get_current_hwm(ref('fct_reservations')) }})
+            reservation_date BETWEEN ({{ get_previous_hwm(_fct_reservations) }})
+            AND ({{ get_current_hwm(_fct_reservations) }})
     {% endif %}
 )
 

@@ -1,3 +1,9 @@
+{{
+  config(
+    event_time='reservation_date'
+  )
+}}
+
 WITH
 
 fct_reservations AS (
