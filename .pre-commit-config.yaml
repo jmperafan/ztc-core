@@ -76,3 +76,37 @@ repos:
         exclude: ^snapshots/
       - id: sqlfluff-fix
         exclude: ^snapshots/
+
+  # dbt-checkpoint: static checks on dbt models, sources, and macros.
+  # The manifest-aware hooks expect target/manifest.json — run `dbt parse`
+  # locally (or `dbt build`) before committing if the hooks complain.
+  - repo: https://github.com/dbt-checkpoint/dbt-checkpoint
+    rev: v2.0.9
+    hooks:
+      # Models — scope to models/ so tests/ and snapshots/ aren't treated as models
+      - id: check-model-has-description
+        files: ^models/.+\.sql$
+      - id: check-model-has-tests
+        files: ^models/.+\.sql$
+      - id: check-model-has-properties-file
+        files: ^models/.+\.sql$
+      - id: check-model-columns-have-desc
+        files: ^models/.+\.sql$
+      # SQL style — these don't need the manifest
+      - id: check-script-ref-and-source
+        files: ^models/.+\.sql$
+      - id: check-script-has-no-table-name
+        files: ^models/.+\.sql$
+      # Sources — scope to models/ YAML where source blocks live.
+      # check-source-has-freshness is intentionally omitted: it only reads
+      # top-level loaded_at_field/freshness, but dbt Fusion's strict schema
+      # requires those under `config:`. The two are mutually incompatible
+      # until dbt-checkpoint catches up to v12 manifest schema.
+      - id: check-source-has-description
+        files: ^models/.+\.ya?ml$
+      - id: check-source-columns-have-desc
+        files: ^models/.+\.ya?ml$
+      # check-macro-has-description was tried but is incompatible with this
+      # project's macro layout: the hook requires SQL filename == macro name,
+      # and we have multi-macro files (e.g. macros/watermark/utilities.sql).
+      # Documenting macros in macros/macros.yml is enforced by convention.

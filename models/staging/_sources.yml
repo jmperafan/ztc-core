@@ -1,5 +1,6 @@
 sources:
   - name: ztc
+    description: Raw data from the Zuilense Tennis Club reservation system, member roster, and Utrecht weather feed. Landed in the RAW.ZTC schema by upstream ingestion.
     database: RAW
     schema: ZTC
     tables:

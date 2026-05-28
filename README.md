@@ -46,13 +46,22 @@ dbt build --select staging         # staging layer only
 dbt build --select +dim_members    # dim_members and all upstream
 ```
 
-### 5. Sync YAML documentation (optional)
+### 5. Scaffold YAML from the warehouse (optional)
 
-dbt-osmosis keeps YAML schema files accurate and propagates column descriptions across the lineage. Run it after building models to catch any drift:
+[dbt-coves](https://github.com/datacoves/dbt-coves) introspects Snowflake and generates source/model YAML scaffolding. Run it when onboarding new tables — not on every commit. Connection details come from the active dbt profile, so make sure your `.env` is loaded first.
+
+dbt-coves only supports Python `>=3.9,<3.13`, so install it in an isolated env via [pipx](https://pipx.pypa.io) rather than the main project:
 
 ```bash
-dbt-osmosis yaml refactor --check  # check only, no writes
-dbt-osmosis yaml refactor          # apply fixes in place
+brew install pipx python@3.12        # one-time prereqs
+pipx install dbt-coves --python python3.12
 ```
 
-See [`docs/dbt-osmosis.md`](docs/dbt-osmosis.md) for details.
+Then:
+
+```bash
+dbt-coves generate sources       # scaffold source YAML for new tables
+dbt-coves generate properties    # scaffold model property YAML
+```
+
+Static checks on existing YAML (descriptions, tests, freshness, etc.) are handled by the [dbt-checkpoint](https://github.com/dbt-checkpoint/dbt-checkpoint) pre-commit hooks configured in `.pre-commit-config.yaml`. Those run automatically on commit and require an up-to-date `target/manifest.json` — re-run `dbt parse` if the hooks complain about stale state.
