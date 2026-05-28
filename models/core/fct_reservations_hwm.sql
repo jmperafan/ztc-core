@@ -13,6 +13,7 @@
     materialized='incremental',
     unique_key='reservation_id',
     incremental_strategy='merge',
+    on_schema_change='fail',
     pre_hook="{{ set_job_param() }}",
     post_hook="{{ update_job_param(success=true) }}",
     meta={'hwm_field': 'reservation_date', 'hwm_source_model': 'fct_reservations'}
