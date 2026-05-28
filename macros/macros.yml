@@ -1,4 +1,43 @@
 macros:
+  - name: check_target
+    description: >
+      Diagnostic macro that logs every field on the dbt `target` object plus
+      core run context (dbt_version, invocation_id, run_started_at, execute).
+      Useful when verifying which warehouse/role/database a run is pointed at,
+      or when debugging schema-name generation. Invoke with `dbt run-operation
+      check_target`.
+
+  - name: dutch_bool
+    description: >
+      Parses Dutch boolean text into a real SQL BOOLEAN. The ZTC reservation
+      system stores yes/no flags as the literal Dutch words `ja` and `nee`,
+      so columns like `clublid` and `bondslid` arrive as VARCHAR. Returns
+      TRUE for `ja`, FALSE for `nee`, NULL for everything else (NULL, empty
+      strings, whitespace, or unrecognised text). Trimming and lowercasing
+      are applied. Deliberately strict: unrecognised values become NULL
+      rather than coercing to FALSE so source-data drift surfaces in
+      downstream tests rather than being silently rewritten.
+    arguments:
+      - name: column
+        type: string
+        description: The column or expression containing the Dutch boolean text.
+
+  - name: snowflake__get_hwm
+    description: >
+      Snowflake-specific implementation of the `get_hwm` dispatch target.
+      Called by get_current_hwm / get_previous_hwm via adapter.dispatch.
+      Returns a subquery that resolves to either the current invocation's
+      pending upper bound (complete = false, matched by invocation_id) or
+      the last successful run's upper bound (complete = true). Falls back
+      to `1900-01-01` when no successful run exists.
+    arguments:
+      - name: current
+        type: boolean
+        description: If true, look up the current (pending) HWM; otherwise the previous successful one.
+      - name: relation_obj
+        type: relation
+        description: The upstream relation used as source_name in the watermark table.
+
   - name: age_group
     description: >
       Bins a continuous age value into 10-year groups by flooring to the nearest decade.

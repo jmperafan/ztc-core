@@ -25,21 +25,9 @@ clean-targets:
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 2. VARIABLES
-# vars values ARE rendered as Jinja at parse time, so env_var() works here.
+# Project variables now live in `vars.yml` at the project root — supported by
+# dbt Fusion 2.0+ for keeping dbt_project.yml focused on configuration.
 # ──────────────────────────────────────────────────────────────────────────────
-vars:
-  # Override at runtime:  DBT_START_DATE=2023-01-01 dbt run
-  start_date: "{{ env_var('DBT_START_DATE', '2022-01-01') }}"
-  watermark_schema: watermark
-  watermark_table: dbt_high_watermark
-  opening_time: "{{ env_var('ZTC_OPENING_TIME', '08:00:00') }}"
-  closing_time: "{{ env_var('ZTC_CLOSING_TIME', '23:00:00') }}"
-  court_numbers: [1, 2, 3, 4, 5]
-  # Each entry is [start_date, end_date] for a closed winter period.
-  # Add a new pair each season; the is_winter_break macro iterates over this list.
-  winter_breaks:
-    - ["2022-01-01", "2022-03-19"]
-    - ["2022-12-06", "2023-03-26"]
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 3. MODEL CONFIGS
