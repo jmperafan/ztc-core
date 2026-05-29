@@ -1,7 +1,7 @@
 WITH
 
 stg_reservations AS (
-    SELECT * FROM {{ ref('stg_reservations') }}
+    SELECT * 
 ),
 
 dim_members AS (
