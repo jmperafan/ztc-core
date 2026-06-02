@@ -1,26 +1,18 @@
 models:
   - name: stg_reservations
     description: >
-      Cleans and renames the raw court_usage source. One row per court reservation.
-      Timestamps are parsed and cast to the correct types; court_number is extracted
-      from the raw court string; reservation_id is a deterministic surrogate key
-      derived from court_number, reservation_date, and start_time via dbt_utils.generate_surrogate_key.
+      Cleans and renames the raw court_usage source. One row per raw court_usage
+      record. Timestamps are parsed and cast to the correct types and court_number
+      is extracted from the raw court string. Deduplication, the derived
+      reservation_start/reservation_end timestamps, and the reservation_id surrogate
+      key live downstream in int_reservations.
     columns:
-      - name: reservation_id
-        description: Deterministic surrogate key — hash of (court_number, reservation_date, start_time).
-        data_tests:
-          - unique
-          - not_null
       - name: reservation_date
         description: Calendar date on which the reservation takes place.
       - name: start_time
         description: Time the reservation starts (TIME, 24-hour).
       - name: end_time
         description: Time the reservation ends (TIME, 24-hour).
-      - name: reservation_start
-        description: Full TIMESTAMP combining reservation_date and start_time.
-      - name: reservation_end
-        description: Full TIMESTAMP combining reservation_date and end_time.
       - name: duration_in_hours
         description: Raw duration in hours as provided by the source system.
       - name: court_number
@@ -176,3 +168,252 @@ models:
         description: Icon identifier for the weather condition, as returned by Visual Crossing.
       - name: stations
         description: Comma-separated list of weather station IDs used for this observation.
+
+  # ── Demo-expansion staging models ──────────────────────────────────────────
+  - name: stg_coaches
+    description: Cleans and renames the raw coaches source. One row per coach.
+    columns:
+      - name: coach_id
+        description: Unique coach identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: first_name
+        description: Coach's first name.
+      - name: last_name
+        description: Coach's last name.
+      - name: email
+        description: Coach's email address.
+      - name: phone
+        description: Coach's phone number.
+      - name: hire_date
+        description: Date the coach was hired.
+      - name: specialty
+        description: Coaching specialty (e.g. Junior development, Competitive).
+      - name: certification_level
+        description: Coaching certification tier (Certified, Professional, Master, Elite).
+      - name: hourly_rate
+        description: Coaching rate per hour, in euros.
+      - name: is_active
+        description: True if the coach is currently employed.
+
+  - name: stg_tournaments
+    description: Cleans and renames the raw tournaments source. One row per tournament.
+    columns:
+      - name: tournament_id
+        description: Unique tournament identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: tournament_name
+        description: Tournament name (renamed from the raw `name` column).
+      - name: start_date
+        description: First day of the tournament.
+      - name: end_date
+        description: Last day of the tournament.
+      - name: category
+        description: Tournament category (Singles, Doubles, Mixed, Junior, Veterans).
+      - name: entry_fee
+        description: Entry fee per participant, in euros.
+      - name: max_participants
+        description: Maximum participant capacity.
+      - name: season_year
+        description: Season the tournament belongs to.
+
+  - name: stg_products
+    description: Cleans and renames the raw products source. One row per product.
+    columns:
+      - name: product_id
+        description: Unique product identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: product_name
+        description: Product name (renamed from the raw `name` column).
+      - name: category
+        description: Product category (Racquet, Balls, Strings, Apparel, Footwear, Accessories, Services).
+      - name: brand
+        description: Product brand.
+      - name: unit_price
+        description: Retail unit price, in euros.
+      - name: is_rentable
+        description: True if the product can be rented.
+      - name: rental_fee
+        description: Rental fee, in euros. NULL for non-rentable products.
+      - name: stock_quantity
+        description: Units currently in stock.
+
+  - name: stg_lessons
+    description: Cleans and renames the raw lessons source. One row per lesson; court_number is parsed from court_id.
+    columns:
+      - name: lesson_id
+        description: Unique lesson identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: member_id
+        description: Member who booked the lesson. ~5% are deliberately orphaned ('GHOST-').
+      - name: coach_id
+        description: Coach who taught the lesson.
+      - name: court_id
+        description: Raw court identifier. 'COURT-X' for deliberately orphaned bookings.
+      - name: court_number
+        description: Numeric court number parsed from the last character of court_id. NULL for 'COURT-X'.
+      - name: lesson_date
+        description: Calendar date of the lesson.
+      - name: start_time
+        description: Start time of the lesson (24-hour).
+      - name: duration_minutes
+        description: Lesson duration in minutes.
+      - name: lesson_type
+        description: Lesson format (Private, Semi-private, Group, Clinic).
+      - name: skill_level
+        description: Target skill level (renamed from the raw `level` column).
+      - name: price
+        description: Lesson price, in euros.
+      - name: status
+        description: Lesson status (Booked, Completed, Cancelled, No-show).
+      - name: created_at
+        description: Timestamp the lesson record was created.
+
+  - name: stg_tournament_entries
+    description: Cleans and renames the raw tournament_entries source. One row per registration.
+    columns:
+      - name: entry_id
+        description: Unique tournament-entry identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: tournament_id
+        description: Tournament registered for.
+      - name: member_id
+        description: Member who registered. ~5% are deliberately orphaned ('GHOST-').
+      - name: registration_date
+        description: Date the member registered.
+      - name: seed
+        description: Seeding position within the tournament (1 = top seed).
+      - name: entry_fee_paid
+        description: Entry fee paid, in euros.
+      - name: final_placement
+        description: Final result (Champion, Runner-up, Semifinalist, … Eliminated).
+
+  - name: stg_matches
+    description: Cleans and renames the raw matches source. One row per match; court_number is parsed from court_id.
+    columns:
+      - name: match_id
+        description: Unique match identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: tournament_id
+        description: Tournament the match belongs to.
+      - name: player1_member_id
+        description: First player.
+      - name: player2_member_id
+        description: Second player.
+      - name: court_id
+        description: Raw court identifier the match was played on.
+      - name: court_number
+        description: Numeric court number parsed from the last character of court_id.
+      - name: match_date
+        description: Date the match was played.
+      - name: start_time
+        description: Start time of the match (24-hour).
+      - name: duration_minutes
+        description: Match duration in minutes.
+      - name: winner_member_id
+        description: Match winner (one of player1 or player2).
+      - name: score
+        description: Final score string (e.g. "6-4, 6-3").
+      - name: round_name
+        description: Round of the match (Round of 32 … Final, Consolation).
+
+  - name: stg_invoices
+    description: Cleans and renames the raw invoices source. One row per invoice header.
+    columns:
+      - name: invoice_id
+        description: Unique invoice identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: member_id
+        description: Member billed. ~5% are deliberately orphaned ('GHOST-').
+      - name: invoice_date
+        description: Date the invoice was issued.
+      - name: due_date
+        description: Date payment is due (invoice_date + 30 days).
+      - name: total_amount
+        description: Invoice total, in euros (sum of line items).
+      - name: status
+        description: Invoice status (Paid, Pending, Overdue).
+      - name: payment_method
+        description: Payment method (Credit Card, Direct Debit, Bank Transfer, Cash).
+      - name: paid_date
+        description: Date the invoice was paid. NULL if unpaid.
+
+  - name: stg_invoice_line_items
+    description: Cleans and renames the raw invoice_line_items source. One row per line item.
+    columns:
+      - name: line_item_id
+        description: Unique line-item identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: invoice_id
+        description: Parent invoice.
+      - name: category
+        description: Line-item category (Membership, Court Fee, Lesson, Pro Shop, …).
+      - name: description
+        description: Free-text line description.
+      - name: quantity
+        description: Quantity billed.
+      - name: unit_amount
+        description: Per-unit amount, in euros.
+      - name: line_amount
+        description: Total line amount (quantity × unit_amount), in euros.
+
+  - name: stg_sales_transactions
+    description: Cleans and renames the raw sales_transactions source. One row per pro-shop sale.
+    columns:
+      - name: transaction_id
+        description: Unique transaction identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: member_id
+        description: Member who purchased.
+      - name: product_id
+        description: Product sold.
+      - name: transaction_date
+        description: Date of the sale.
+      - name: quantity
+        description: Units sold.
+      - name: unit_price
+        description: Per-unit price, in euros.
+      - name: discount_pct
+        description: Discount percentage applied (0, 10, or 20).
+      - name: total_amount
+        description: Final amount charged after discount, in euros.
+
+  - name: stg_equipment_rentals
+    description: Cleans and renames the raw equipment_rentals source. One row per rental.
+    columns:
+      - name: rental_id
+        description: Unique rental identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: member_id
+        description: Member who rented.
+      - name: product_id
+        description: Product rented.
+      - name: rental_date
+        description: Date the equipment was rented out.
+      - name: return_date
+        description: Date the equipment was returned. NULL if not yet returned.
+      - name: rental_fee
+        description: Base rental fee, in euros.
+      - name: late_fee
+        description: Late-return fee, in euros (0 if on time).
+      - name: was_returned
+        description: True if the equipment has been returned.

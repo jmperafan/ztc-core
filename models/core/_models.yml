@@ -524,3 +524,610 @@ models:
       - name: ideal_weather
         data_type: boolean
         description: True when tennis conditions were ideal (temp 10–35°C, no rain, wind ≤ 20 km/h).
+
+  # ── Demo-expansion marts (coaching, competition, billing, retail) ──────────
+  - name: dim_coaches
+    config:
+      contract:
+        enforced: true
+    description: One row per tennis coach, with full_name and years_at_club derived at query time.
+    columns:
+      - name: coach_id
+        data_type: varchar
+        description: Unique coach identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: first_name
+        data_type: varchar
+        description: Coach's first name.
+      - name: last_name
+        data_type: varchar
+        description: Coach's last name.
+      - name: full_name
+        data_type: varchar
+        description: First and last name concatenated.
+      - name: email
+        data_type: varchar
+        description: Coach's email address.
+      - name: phone
+        data_type: varchar
+        description: Coach's phone number.
+      - name: hire_date
+        data_type: date
+        description: Date the coach was hired.
+      - name: years_at_club
+        data_type: number
+        description: Whole years between hire_date and today.
+      - name: specialty
+        data_type: varchar
+        description: Coaching specialty (e.g. Junior development, Competitive).
+      - name: certification_level
+        data_type: varchar
+        description: Coaching certification tier (Certified, Professional, Master, Elite).
+      - name: hourly_rate
+        data_type: number
+        description: Coaching rate per hour, in euros.
+      - name: is_active
+        data_type: boolean
+        description: True if the coach is currently employed.
+
+  - name: dim_tournaments
+    config:
+      contract:
+        enforced: true
+    description: One row per club tournament, with derived duration.
+    columns:
+      - name: tournament_id
+        data_type: varchar
+        description: Unique tournament identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: tournament_name
+        data_type: varchar
+        description: Tournament name (e.g. Summer Championship).
+      - name: start_date
+        data_type: date
+        description: First day of the tournament.
+      - name: end_date
+        data_type: date
+        description: Last day of the tournament.
+      - name: duration_days
+        data_type: number
+        description: Inclusive number of days the tournament runs.
+      - name: is_multi_day
+        data_type: boolean
+        description: True if the tournament spans more than one day.
+      - name: category
+        data_type: varchar
+        description: Tournament category (Singles, Doubles, Mixed, Junior, Veterans).
+      - name: entry_fee
+        data_type: number
+        description: Entry fee per participant, in euros.
+      - name: max_participants
+        data_type: number
+        description: Maximum participant capacity.
+      - name: season_year
+        data_type: number
+        description: Season the tournament belongs to.
+
+  - name: dim_products
+    config:
+      contract:
+        enforced: true
+    description: One row per pro-shop product, with stock and service flags.
+    columns:
+      - name: product_id
+        data_type: varchar
+        description: Unique product identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: product_name
+        data_type: varchar
+        description: Product name.
+      - name: category
+        data_type: varchar
+        description: Product category (Racquet, Balls, Strings, Apparel, Footwear, Accessories, Services).
+      - name: brand
+        data_type: varchar
+        description: Product brand.
+      - name: unit_price
+        data_type: number
+        description: Retail unit price, in euros.
+      - name: is_rentable
+        data_type: boolean
+        description: True if the product can be rented.
+      - name: rental_fee
+        data_type: number
+        description: Rental fee, in euros. NULL for non-rentable products.
+      - name: stock_quantity
+        data_type: number
+        description: Units currently in stock.
+      - name: is_service
+        data_type: boolean
+        description: True if the product is a service (category = 'Services').
+      - name: is_in_stock
+        data_type: boolean
+        description: True if stock_quantity is greater than zero.
+
+  - name: fct_lessons
+    config:
+      contract:
+        enforced: true
+    description: One row per coaching lesson, enriched with coach and member attributes.
+    columns:
+      - name: lesson_id
+        data_type: varchar
+        description: Unique lesson identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: lesson_date
+        data_type: date
+        description: Calendar date of the lesson.
+      - name: start_time
+        data_type: time
+        description: Start time of the lesson (24-hour).
+      - name: start_hour
+        data_type: number
+        description: Hour component of start_time (0–23).
+      - name: day_of_week
+        data_type: number
+        description: Day-of-week integer (1 = Sunday, 7 = Saturday in Snowflake).
+      - name: day_of_week_name
+        data_type: varchar
+        description: Full day name (e.g. Monday).
+      - name: is_weekend
+        data_type: boolean
+        description: True if the lesson falls on Saturday or Sunday.
+      - name: duration_minutes
+        data_type: number
+        description: Lesson duration in minutes.
+      - name: lesson_type
+        data_type: varchar
+        description: Lesson format (Private, Semi-private, Group, Clinic).
+      - name: skill_level
+        data_type: varchar
+        description: Target skill level (Beginner, Intermediate, Advanced).
+      - name: price
+        data_type: number
+        description: Lesson price, in euros.
+      - name: status
+        data_type: varchar
+        description: Lesson status (Booked, Completed, Cancelled, No-show).
+      - name: is_cancelled
+        data_type: boolean
+        description: True if the lesson was cancelled.
+      - name: court_id
+        data_type: varchar
+        description: Raw court identifier the lesson was booked on. 'COURT-X' for orphaned bookings.
+      - name: court_number
+        data_type: number
+        description: Numeric court number parsed from court_id. NULL for orphaned 'COURT-X' bookings.
+      - name: coach_id
+        data_type: varchar
+        description: Coach who taught the lesson. Foreign key to dim_coaches.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_coaches')
+                field: coach_id
+      - name: coach_name
+        data_type: varchar
+        description: Coach full name (from dim_coaches).
+      - name: coach_specialty
+        data_type: varchar
+        description: Coach specialty (from dim_coaches).
+      - name: member_id
+        data_type: varchar
+        description: Member who booked the lesson. Foreign key to dim_members; ~5% are deliberately orphaned ('GHOST-') for tests to catch.
+        data_tests:
+          - string_relationships:
+              arguments:
+                to: ref('dim_members')
+                field: member_id
+              config:
+                severity: warn
+      - name: gender
+        data_type: varchar
+        description: Member's gender (from dim_members). NULL for orphaned members.
+      - name: age_group
+        data_type: number
+        description: Member's age group bucket. NULL for orphaned members.
+      - name: city
+        data_type: varchar
+        description: Member's city. NULL for orphaned members.
+      - name: current_type_of_membership
+        data_type: varchar
+        description: Member's active membership tier. NULL for orphaned members.
+      - name: created_at
+        data_type: timestamp_ntz
+        description: Timestamp the lesson record was created.
+
+  - name: fct_tournament_entries
+    config:
+      contract:
+        enforced: true
+    description: One row per member registration for a tournament, enriched with tournament and member attributes.
+    columns:
+      - name: entry_id
+        data_type: varchar
+        description: Unique tournament-entry identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: tournament_id
+        data_type: varchar
+        description: Tournament registered for. Foreign key to dim_tournaments.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_tournaments')
+                field: tournament_id
+      - name: tournament_name
+        data_type: varchar
+        description: Tournament name (from dim_tournaments).
+      - name: tournament_category
+        data_type: varchar
+        description: Tournament category (from dim_tournaments).
+      - name: season_year
+        data_type: number
+        description: Season the tournament belongs to.
+      - name: registration_date
+        data_type: date
+        description: Date the member registered.
+      - name: seed
+        data_type: number
+        description: Seeding position within the tournament (1 = top seed).
+      - name: entry_fee_paid
+        data_type: number
+        description: Entry fee paid, in euros.
+      - name: final_placement
+        data_type: varchar
+        description: Final result (Champion, Runner-up, Semifinalist, … Eliminated).
+      - name: is_champion
+        data_type: boolean
+        description: True if the member won the tournament.
+      - name: member_id
+        data_type: varchar
+        description: Member who entered. Foreign key to dim_members; ~5% deliberately orphaned ('GHOST-').
+        data_tests:
+          - string_relationships:
+              arguments:
+                to: ref('dim_members')
+                field: member_id
+              config:
+                severity: warn
+      - name: gender
+        data_type: varchar
+        description: Member's gender. NULL for orphaned members.
+      - name: age_group
+        data_type: number
+        description: Member's age group bucket. NULL for orphaned members.
+      - name: city
+        data_type: varchar
+        description: Member's city. NULL for orphaned members.
+
+  - name: fct_matches
+    config:
+      contract:
+        enforced: true
+    description: One row per tournament match, enriched with tournament attributes.
+    columns:
+      - name: match_id
+        data_type: varchar
+        description: Unique match identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: tournament_id
+        data_type: varchar
+        description: Tournament the match belongs to. Foreign key to dim_tournaments.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_tournaments')
+                field: tournament_id
+      - name: tournament_name
+        data_type: varchar
+        description: Tournament name (from dim_tournaments).
+      - name: tournament_category
+        data_type: varchar
+        description: Tournament category (from dim_tournaments).
+      - name: season_year
+        data_type: number
+        description: Season the tournament belongs to.
+      - name: round_name
+        data_type: varchar
+        description: Round of the match (Round of 32 … Final, Consolation).
+      - name: match_date
+        data_type: date
+        description: Date the match was played.
+      - name: start_time
+        data_type: time
+        description: Start time of the match (24-hour).
+      - name: duration_minutes
+        data_type: number
+        description: Match duration in minutes.
+      - name: court_id
+        data_type: varchar
+        description: Raw court identifier the match was played on.
+      - name: court_number
+        data_type: number
+        description: Numeric court number parsed from court_id.
+      - name: player1_member_id
+        data_type: varchar
+        description: First player. Foreign key to dim_members.
+        data_tests:
+          - string_relationships:
+              arguments:
+                to: ref('dim_members')
+                field: member_id
+      - name: player2_member_id
+        data_type: varchar
+        description: Second player. Foreign key to dim_members.
+        data_tests:
+          - string_relationships:
+              arguments:
+                to: ref('dim_members')
+                field: member_id
+      - name: winner_member_id
+        data_type: varchar
+        description: Match winner. Foreign key to dim_members.
+        data_tests:
+          - string_relationships:
+              arguments:
+                to: ref('dim_members')
+                field: member_id
+      - name: winner_is_player1
+        data_type: boolean
+        description: True if player1 won the match.
+      - name: score
+        data_type: varchar
+        description: Final score string (e.g. "6-4, 6-3").
+      - name: sets_played
+        data_type: number
+        description: Number of sets in the match, parsed from the score.
+
+  - name: fct_invoices
+    config:
+      contract:
+        enforced: true
+    description: One row per billing invoice header, enriched with member attributes.
+    columns:
+      - name: invoice_id
+        data_type: varchar
+        description: Unique invoice identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: member_id
+        data_type: varchar
+        description: Member billed. Foreign key to dim_members; ~5% deliberately orphaned ('GHOST-').
+        data_tests:
+          - string_relationships:
+              arguments:
+                to: ref('dim_members')
+                field: member_id
+              config:
+                severity: warn
+      - name: gender
+        data_type: varchar
+        description: Member's gender. NULL for orphaned members.
+      - name: age_group
+        data_type: number
+        description: Member's age group bucket. NULL for orphaned members.
+      - name: city
+        data_type: varchar
+        description: Member's city. NULL for orphaned members.
+      - name: current_type_of_membership
+        data_type: varchar
+        description: Member's active membership tier. NULL for orphaned members.
+      - name: invoice_date
+        data_type: date
+        description: Date the invoice was issued.
+      - name: due_date
+        data_type: date
+        description: Date payment is due (invoice_date + 30 days).
+      - name: paid_date
+        data_type: date
+        description: Date the invoice was paid. NULL if unpaid.
+      - name: days_to_pay
+        data_type: number
+        description: Days between invoice_date and paid_date. NULL if unpaid.
+      - name: total_amount
+        data_type: number
+        description: Invoice total, in euros (sum of line items).
+      - name: status
+        data_type: varchar
+        description: Invoice status (Paid, Pending, Overdue).
+      - name: is_paid
+        data_type: boolean
+        description: True if status is Paid.
+      - name: is_overdue
+        data_type: boolean
+        description: True if status is Overdue.
+      - name: payment_method
+        data_type: varchar
+        description: Payment method (Credit Card, Direct Debit, Bank Transfer, Cash).
+
+  - name: fct_invoice_line_items
+    config:
+      contract:
+        enforced: true
+    description: One row per invoice line item, with the parent invoice's date and member.
+    columns:
+      - name: line_item_id
+        data_type: varchar
+        description: Unique line-item identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: invoice_id
+        data_type: varchar
+        description: Parent invoice. Foreign key to fct_invoices.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('fct_invoices')
+                field: invoice_id
+      - name: invoice_date
+        data_type: date
+        description: Date of the parent invoice.
+      - name: member_id
+        data_type: varchar
+        description: Member billed (from the parent invoice). ~5% deliberately orphaned ('GHOST-').
+        data_tests:
+          - string_relationships:
+              arguments:
+                to: ref('dim_members')
+                field: member_id
+              config:
+                severity: warn
+      - name: category
+        data_type: varchar
+        description: Line-item category (Membership, Court Fee, Lesson, Pro Shop, …).
+      - name: description
+        data_type: varchar
+        description: Free-text line description.
+      - name: quantity
+        data_type: number
+        description: Quantity billed.
+      - name: unit_amount
+        data_type: number
+        description: Per-unit amount, in euros.
+      - name: line_amount
+        data_type: number
+        description: Total line amount (quantity × unit_amount), in euros.
+
+  - name: fct_sales_transactions
+    config:
+      contract:
+        enforced: true
+    description: One row per pro-shop sale, enriched with product and member attributes.
+    columns:
+      - name: transaction_id
+        data_type: varchar
+        description: Unique transaction identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: transaction_date
+        data_type: date
+        description: Date of the sale.
+      - name: member_id
+        data_type: varchar
+        description: Member who purchased. Foreign key to dim_members.
+        data_tests:
+          - string_relationships:
+              arguments:
+                to: ref('dim_members')
+                field: member_id
+      - name: gender
+        data_type: varchar
+        description: Member's gender (from dim_members).
+      - name: age_group
+        data_type: number
+        description: Member's age group bucket.
+      - name: city
+        data_type: varchar
+        description: Member's city.
+      - name: product_id
+        data_type: varchar
+        description: Product sold. Foreign key to dim_products.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_products')
+                field: product_id
+      - name: product_name
+        data_type: varchar
+        description: Product name (from dim_products).
+      - name: product_category
+        data_type: varchar
+        description: Product category (from dim_products).
+      - name: product_brand
+        data_type: varchar
+        description: Product brand (from dim_products).
+      - name: quantity
+        data_type: number
+        description: Units sold.
+      - name: unit_price
+        data_type: number
+        description: Per-unit price, in euros.
+      - name: discount_pct
+        data_type: number
+        description: Discount percentage applied (0, 10, or 20).
+      - name: gross_amount
+        data_type: number
+        description: Quantity × unit_price before discount, in euros.
+      - name: net_amount
+        data_type: number
+        description: Final amount charged after discount, in euros.
+
+  - name: fct_equipment_rentals
+    config:
+      contract:
+        enforced: true
+    description: One row per equipment rental, enriched with product and member attributes.
+    columns:
+      - name: rental_id
+        data_type: varchar
+        description: Unique rental identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: member_id
+        data_type: varchar
+        description: Member who rented. Foreign key to dim_members.
+        data_tests:
+          - string_relationships:
+              arguments:
+                to: ref('dim_members')
+                field: member_id
+      - name: gender
+        data_type: varchar
+        description: Member's gender (from dim_members).
+      - name: age_group
+        data_type: number
+        description: Member's age group bucket.
+      - name: city
+        data_type: varchar
+        description: Member's city.
+      - name: product_id
+        data_type: varchar
+        description: Product rented. Foreign key to dim_products.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_products')
+                field: product_id
+      - name: product_name
+        data_type: varchar
+        description: Product name (from dim_products).
+      - name: product_category
+        data_type: varchar
+        description: Product category (from dim_products).
+      - name: rental_date
+        data_type: date
+        description: Date the equipment was rented out.
+      - name: return_date
+        data_type: date
+        description: Date the equipment was returned. NULL if not yet returned.
+      - name: rental_duration_days
+        data_type: number
+        description: Days between rental_date and return_date. NULL if not returned.
+      - name: rental_fee
+        data_type: number
+        description: Base rental fee, in euros.
+      - name: late_fee
+        data_type: number
+        description: Late-return fee, in euros (0 if on time).
+      - name: total_fee
+        data_type: number
+        description: rental_fee + late_fee, in euros.
+      - name: was_returned
+        data_type: boolean
+        description: True if the equipment has been returned.

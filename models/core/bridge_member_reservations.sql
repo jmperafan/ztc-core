@@ -1,7 +1,7 @@
 WITH
 
-stg_reservations AS (
-    SELECT * FROM {{ ref('stg_reservations') }}
+int_reservations AS (
+    SELECT * FROM {{ ref('int_reservations') }}
 ),
 
 dim_members AS (
@@ -12,7 +12,7 @@ reservations AS (
     SELECT
         reservation_id,
         member_id
-    FROM stg_reservations
+    FROM int_reservations
     WHERE member_id IS NOT NULL
 ),
 

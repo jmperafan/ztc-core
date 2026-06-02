@@ -1,4 +1,50 @@
 models:
+  - name: int_reservations
+    description: >
+      Canonical reservation grain. Deduplicates stg_reservations to one row per
+      court_number × reservation_date × start_time, derives the reservation_start /
+      reservation_end timestamps, and generates the reservation_id surrogate key.
+      This is the model every downstream consumer of reservations reads from.
+    columns:
+      - name: reservation_id
+        description: Deterministic surrogate key — hash of (court_number, reservation_date, start_time).
+        data_tests:
+          - unique
+          - not_null
+      - name: reservation_date
+        description: Calendar date on which the reservation takes place.
+      - name: start_time
+        description: Time the reservation starts (TIME, 24-hour).
+      - name: end_time
+        description: Time the reservation ends (TIME, 24-hour).
+      - name: reservation_start
+        description: Full TIMESTAMP combining reservation_date and start_time.
+      - name: reservation_end
+        description: Full TIMESTAMP combining reservation_date and end_time.
+      - name: duration_in_hours
+        description: Raw duration in hours as provided by the source system.
+      - name: court_number
+        description: Tennis court number (1–5), extracted from the raw court string.
+        data_tests:
+          - is_between:
+              arguments:
+                min_value: 1
+                max_value: 5
+      - name: player_1
+        description: Name of the primary booking member (inschrijver).
+      - name: player_2
+        description: Name of the second player on the reservation.
+      - name: player_3
+        description: Name of the third player on the reservation.
+      - name: player_4
+        description: Name of the fourth player on the reservation.
+      - name: member_id
+        description: Club membership number of the primary booker. NULL for non-member bookings.
+      - name: reservation_type
+        description: Category of the reservation (e.g. lesson, competition, casual).
+      - name: event_description
+        description: Free-text description of the event or booking.
+
   - name: int_weather_data
     description: >
       Deduplicated weather observations. Resolves duplicate datetime values from the
@@ -6,10 +52,54 @@ models:
       weather grain used by fct_weather.
     columns:
       - name: datetime
-        description: Timestamp of the observation (hourly). Primary key.
+        description: Timestamp of the observation (hourly granularity). Primary key.
         data_tests:
           - unique
           - not_null
+      - name: temperature
+        description: Air temperature in degrees Celsius.
+      - name: thermal_sensation
+        description: Feels-like temperature in degrees Celsius, accounting for wind and humidity.
+      - name: dew
+        description: Dew point temperature in degrees Celsius.
+      - name: humidity
+        description: Relative humidity as a percentage (0–100).
+      - name: precipitation
+        description: Precipitation amount in millimetres.
+      - name: precipitation_probability
+        description: Probability of precipitation occurring (0–100).
+      - name: precipitation_type
+        description: Type of precipitation (e.g. rain, snow, freezingrain).
+      - name: snow
+        description: Snowfall amount in centimetres.
+      - name: snow_depth
+        description: Depth of snow on the ground in centimetres.
+      - name: wind_gust
+        description: Maximum wind gust speed in kilometres per hour.
+      - name: wind_speed
+        description: Average wind speed in kilometres per hour.
+      - name: wind_direction
+        description: Wind direction in degrees (0–360, where 0/360 = North).
+      - name: sea_level_pressure
+        description: Atmospheric pressure at sea level in millibars.
+      - name: cloud_cover
+        description: Cloud cover as a percentage of the sky (0–100).
+      - name: visibility
+        description: Visibility distance in kilometres.
+      - name: solar_radiation
+        description: Solar radiation in watts per square metre.
+      - name: solar_energy
+        description: Solar energy in mega-joules per square metre.
+      - name: uv_index
+        description: UV index value.
+      - name: severe_risk
+        description: Risk score for severe weather events (0–100).
+      - name: conditions
+        description: Human-readable summary of weather conditions (e.g. "Partially cloudy").
+      - name: icon
+        description: Icon identifier for the weather condition, as returned by Visual Crossing.
+      - name: stations
+        description: Comma-separated list of weather station IDs used for this observation.
 
   - name: int_club_members
     description: >
@@ -22,6 +112,68 @@ models:
         data_tests:
           - unique
           - not_null
+      - name: post_code
+        description: Member's postal code.
+      - name: city
+        description: Member's city of residence.
+      - name: country
+        description: Member's country of residence.
+      - name: labels
+        description: Custom labels assigned to the member in the club system.
+      - name: roll
+        description: Role(s) the member holds at the club (e.g. board, volunteer).
+      - name: is_club_member
+        description: Boolean flag — true if the person holds an active club membership.
+      - name: is_knltb_member
+        description: Boolean flag — true if the member is also registered with the national tennis federation (KNLTB).
+      - name: gender
+        description: Member's gender as recorded by the club.
+      - name: current_type_of_membership
+        description: Name of the currently active membership tier.
+      - name: current_membership_start_date
+        description: Start date of the current membership tier.
+      - name: inactive_type_of_membership
+        description: Name of the most recent lapsed membership tier.
+      - name: former_membership_start_date
+        description: Start date of the most recent lapsed membership tier.
+      - name: active_products
+        description: Additional products (e.g. locker rental) currently subscribed to.
+      - name: active_product_date
+        description: Start date of active additional products.
+      - name: inactive_products
+        description: Additional products that are no longer active.
+      - name: inactive_products_date
+        description: Start date of lapsed additional products.
+      - name: additional_information
+        description: Free-text extra information field from the club system.
+      - name: reasons_for_cancellation
+        description: Reason code for membership cancellation, if applicable.
+      - name: reasons_for_cancellation_comment
+        description: Free-text comment accompanying the cancellation reason.
+      - name: club_app_login_date
+        description: Date the member last logged in to the club app.
+      - name: services_current_year
+        description: Number of volunteer service points accumulated in the current season.
+      - name: singles_level
+        description: KNLTB playing strength rating for singles (lower is stronger).
+      - name: doubles_level
+        description: KNLTB playing strength rating for doubles.
+      - name: padel_level
+        description: Playing strength rating for padel.
+      - name: ranking_singles
+        description: National singles ranking number.
+      - name: ranking_doubles
+        description: National doubles ranking number.
+      - name: ranking_padel
+        description: National padel ranking number.
+      - name: choice_of_membership
+        description: Membership option selected by the member during sign-up.
+      - name: volunteer_type
+        description: Type of volunteer work the member is registered for.
+      - name: birth_date
+        description: Member's date of birth, parsed from the source DD/MM/YYYY format.
+      - name: member_since
+        description: Date the member joined the club, parsed from the source DD/MM/YYYY format.
 
   - name: int_court_date_spine
     description: >
@@ -40,7 +192,7 @@ models:
 
   - name: int_court_usage
     description: >
-      Gap-filled court usage. Starts from actual reservations in stg_reservations
+      Gap-filled court usage. Starts from actual reservations in int_reservations
       and inserts synthetic "Beschikbaar" rows to cover every unbooked slot within
       operating hours (opening_time to closing_time). Also handles days with no
       bookings at all via the empty_days CTE. The result covers every operating
@@ -87,6 +239,33 @@ models:
         data_tests:
           - unique
           - not_null
+      - name: reservation_id
+        description: >
+          Surrogate key of the original reservation for actual bookings.
+          NULL for synthetic gap-fill and closed-hour rows.
+      - name: court_number
+        description: Tennis court number (1–5).
+      - name: reservation_date
+        description: Calendar date of the slot.
+      - name: start_time
+        description: Start time of the slot (TIME, 24-hour).
+      - name: end_time
+        description: End time of the slot (TIME, 24-hour).
+      - name: reservation_type
+        description: >
+          Type of slot. Actual reservation types from the source system,
+          "Beschikbaar" for available (gap-fill) slots, or "Gesloten" for
+          closed hours outside operating times.
+      - name: event_description
+        description: >
+          Description of the slot. "Niet geboekt" for available gaps;
+          "Club niet open" for closed hours.
+      - name: duration_in_mins
+        description: Duration of the slot in minutes.
+      - name: is_winter_break
+        description: >
+          True when the slot falls within a known ZTC winter break period
+          (courts closed for the season).
 
   - name: int_daily_court_stats
     description: >
@@ -99,6 +278,22 @@ models:
         data_tests:
           - unique
           - not_null
+      - name: court_number
+        description: Tennis court number (1–5).
+      - name: reservation_date
+        description: Calendar date of the aggregated slots.
+      - name: booked_slots
+        description: Number of minute-level slots marked as booked.
+      - name: available_slots
+        description: Number of minute-level slots marked as available.
+      - name: total_playable_slots
+        description: Total booked + available slots (excludes closed hours).
+      - name: booked_minutes
+        description: Total minutes booked on this court on this date.
+      - name: available_minutes
+        description: Total playable minutes on this court on this date.
+      - name: utilization_pct
+        description: Share of playable minutes that were booked (%).
 
   - name: int_hourly_weather_usage
     description: >
@@ -112,6 +307,27 @@ models:
               - reservation_date
               - start_hour
               - court_number
+    columns:
+      - name: reservation_date
+        description: Calendar date of the hour.
+      - name: start_hour
+        description: Hour of day (0–23).
+      - name: court_number
+        description: Tennis court number (1–5).
+      - name: booked_slots
+        description: Number of minute-level slots marked as booked in this hour.
+      - name: available_slots
+        description: Number of minute-level slots available in this hour.
+      - name: utilization_pct
+        description: Share of playable slots in this hour that were booked (%).
+      - name: temperature
+        description: Air temperature in °C.
+      - name: precipitation
+        description: Precipitation in mm.
+      - name: wind_speed
+        description: Wind speed in km/h.
+      - name: ideal_weather
+        description: True when conditions are ideal for tennis (temp 10–35°C, no rain, wind ≤ 20 km/h).
 
   - name: int_reservation_events
     description: >
@@ -125,15 +341,437 @@ models:
         data_tests:
           - unique
           - not_null
+      - name: reservation_date
+        description: Calendar date of the booking.
+      - name: court_number
+        description: Tennis court number (1–5).
+      - name: start_time
+        description: Start time of the reservation (TIME, 24-hour).
+      - name: end_time
+        description: End time of the reservation (TIME, 24-hour).
+      - name: duration_in_mins
+        description: Duration of the reservation in minutes.
+      - name: day_of_week
+        description: Day-of-week integer (1 = Sunday, 7 = Saturday in Snowflake).
+      - name: day_of_week_name
+        description: Full day name (e.g. Monday).
+      - name: start_hour
+        description: Hour component of start_time (0–23).
+      - name: member_id
+        description: Foreign key to dim_members. NULL for guest bookings.
+      - name: gender
+        description: Member's gender. NULL for unlinked bookings.
+      - name: age_group
+        description: Member's age group bucket. NULL for unlinked bookings.
+      - name: city
+        description: Member's city of residence. NULL for unlinked bookings.
+      - name: current_type_of_membership
+        description: Name of the member's active membership tier. NULL for unlinked bookings.
+      - name: is_club_member
+        description: True if the member holds an active club membership.
+      - name: is_knltb_member
+        description: True if the member is registered with the national tennis federation.
 
   - name: int_reservations_hwm
     description: >
-      Actual court bookings enriched with member demographics and the hourly
-      weather observation at the booking's date/hour. Feeds the thin
-      fct_reservations_hwm mart, which adds the High Watermark window filter.
+      int_reservation_events extended with the hourly weather observation at each
+      booking's date/hour. The member-enrichment logic is not duplicated here — it
+      is reused from int_reservation_events; this model only adds the weather join.
+      Feeds the thin fct_reservations_hwm mart, which adds the High Watermark window filter.
     columns:
       - name: reservation_id
         description: Surrogate key for the reservation. Primary key.
         data_tests:
           - unique
           - not_null
+      - name: reservation_date
+        description: Calendar date of the booking.
+      - name: court_number
+        description: Tennis court number (1–5).
+      - name: start_time
+        description: Start time of the reservation (TIME, 24-hour).
+      - name: end_time
+        description: End time of the reservation (TIME, 24-hour).
+      - name: duration_in_mins
+        description: Duration of the reservation in minutes.
+      - name: day_of_week
+        description: Day-of-week integer (1 = Sunday, 7 = Saturday in Snowflake).
+      - name: day_of_week_name
+        description: Full day name (e.g. Monday).
+      - name: start_hour
+        description: Hour component of start_time (0–23).
+      - name: member_id
+        description: Foreign key to dim_members. NULL for guest bookings.
+      - name: gender
+        description: Member's gender. NULL for unlinked bookings.
+      - name: age_group
+        description: Member's age group bucket. NULL for unlinked bookings.
+      - name: city
+        description: Member's city of residence. NULL for unlinked bookings.
+      - name: current_type_of_membership
+        description: Name of the member's active membership tier. NULL for unlinked bookings.
+      - name: is_club_member
+        description: True if the member holds an active club membership.
+      - name: is_knltb_member
+        description: True if the member is registered with the national tennis federation.
+      - name: temperature
+        description: Air temperature in °C at the hour of the booking.
+      - name: precipitation
+        description: Precipitation in mm at the hour of the booking.
+      - name: wind_speed
+        description: Wind speed in km/h at the hour of the booking.
+      - name: ideal_weather
+        description: True when tennis conditions were ideal (temp 10–35°C, no rain, wind ≤ 20 km/h).
+
+  # ── Demo-expansion intermediate models ─────────────────────────────────────
+  - name: int_coaches
+    description: Deduplicated coaches with derived full_name and years_at_club. Canonical coach grain used by dim_coaches.
+    columns:
+      - name: coach_id
+        description: Unique coach identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: first_name
+        description: Coach's first name.
+      - name: last_name
+        description: Coach's last name.
+      - name: full_name
+        description: First and last name concatenated.
+      - name: email
+        description: Coach's email address.
+      - name: phone
+        description: Coach's phone number.
+      - name: hire_date
+        description: Date the coach was hired.
+      - name: years_at_club
+        description: Whole years between hire_date and today.
+      - name: specialty
+        description: Coaching specialty.
+      - name: certification_level
+        description: Coaching certification tier.
+      - name: hourly_rate
+        description: Coaching rate per hour, in euros.
+      - name: is_active
+        description: True if the coach is currently employed.
+
+  - name: int_tournaments
+    description: Deduplicated tournaments with derived duration_days and is_multi_day. Canonical grain used by dim_tournaments.
+    columns:
+      - name: tournament_id
+        description: Unique tournament identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: tournament_name
+        description: Tournament name.
+      - name: start_date
+        description: First day of the tournament.
+      - name: end_date
+        description: Last day of the tournament.
+      - name: duration_days
+        description: Inclusive number of days the tournament runs.
+      - name: is_multi_day
+        description: True if the tournament spans more than one day.
+      - name: category
+        description: Tournament category.
+      - name: entry_fee
+        description: Entry fee per participant, in euros.
+      - name: max_participants
+        description: Maximum participant capacity.
+      - name: season_year
+        description: Season the tournament belongs to.
+
+  - name: int_products
+    description: Deduplicated products with derived is_service and is_in_stock flags. Canonical grain used by dim_products.
+    columns:
+      - name: product_id
+        description: Unique product identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: product_name
+        description: Product name.
+      - name: category
+        description: Product category.
+      - name: brand
+        description: Product brand.
+      - name: unit_price
+        description: Retail unit price, in euros.
+      - name: is_rentable
+        description: True if the product can be rented.
+      - name: rental_fee
+        description: Rental fee, in euros. NULL for non-rentable products.
+      - name: stock_quantity
+        description: Units currently in stock.
+      - name: is_service
+        description: True if the product is a service (category = 'Services').
+      - name: is_in_stock
+        description: True if stock_quantity is greater than zero.
+
+  - name: int_lessons
+    description: Lessons enriched with coach (dim_coaches) and member (dim_members) attributes, plus derived time/flag fields. Feeds fct_lessons.
+    columns:
+      - name: lesson_id
+        description: Unique lesson identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: lesson_date
+        description: Calendar date of the lesson.
+      - name: start_time
+        description: Start time of the lesson (24-hour).
+      - name: start_hour
+        description: Hour component of start_time (0–23).
+      - name: day_of_week
+        description: Day-of-week integer (1 = Sunday, 7 = Saturday in Snowflake).
+      - name: day_of_week_name
+        description: Full day name (e.g. Monday).
+      - name: is_weekend
+        description: True if the lesson falls on Saturday or Sunday.
+      - name: duration_minutes
+        description: Lesson duration in minutes.
+      - name: lesson_type
+        description: Lesson format (Private, Semi-private, Group, Clinic).
+      - name: skill_level
+        description: Target skill level (Beginner, Intermediate, Advanced).
+      - name: price
+        description: Lesson price, in euros.
+      - name: status
+        description: Lesson status (Booked, Completed, Cancelled, No-show).
+      - name: is_cancelled
+        description: True if the lesson was cancelled.
+      - name: court_id
+        description: Raw court identifier. 'COURT-X' for orphaned bookings.
+      - name: court_number
+        description: Numeric court number parsed from court_id. NULL for 'COURT-X'.
+      - name: coach_id
+        description: Coach who taught the lesson.
+      - name: coach_name
+        description: Coach full name (from dim_coaches).
+      - name: coach_specialty
+        description: Coach specialty (from dim_coaches).
+      - name: member_id
+        description: Member who booked the lesson. ~5% deliberately orphaned ('GHOST-').
+      - name: gender
+        description: Member's gender. NULL for orphaned members.
+      - name: age_group
+        description: Member's age group bucket. NULL for orphaned members.
+      - name: city
+        description: Member's city. NULL for orphaned members.
+      - name: current_type_of_membership
+        description: Member's active membership tier. NULL for orphaned members.
+      - name: created_at
+        description: Timestamp the lesson record was created.
+
+  - name: int_tournament_entries
+    description: Tournament entries enriched with tournament (dim_tournaments) and member (dim_members) attributes. Feeds fct_tournament_entries.
+    columns:
+      - name: entry_id
+        description: Unique tournament-entry identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: tournament_id
+        description: Tournament registered for.
+      - name: tournament_name
+        description: Tournament name (from dim_tournaments).
+      - name: tournament_category
+        description: Tournament category (from dim_tournaments).
+      - name: season_year
+        description: Season the tournament belongs to.
+      - name: registration_date
+        description: Date the member registered.
+      - name: seed
+        description: Seeding position within the tournament (1 = top seed).
+      - name: entry_fee_paid
+        description: Entry fee paid, in euros.
+      - name: final_placement
+        description: Final result (Champion, Runner-up, … Eliminated).
+      - name: is_champion
+        description: True if the member won the tournament.
+      - name: member_id
+        description: Member who entered. ~5% deliberately orphaned ('GHOST-').
+      - name: gender
+        description: Member's gender. NULL for orphaned members.
+      - name: age_group
+        description: Member's age group bucket. NULL for orphaned members.
+      - name: city
+        description: Member's city. NULL for orphaned members.
+
+  - name: int_matches
+    description: Matches enriched with tournament (dim_tournaments) attributes plus derived winner_is_player1 and sets_played. Feeds fct_matches.
+    columns:
+      - name: match_id
+        description: Unique match identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: tournament_id
+        description: Tournament the match belongs to.
+      - name: tournament_name
+        description: Tournament name (from dim_tournaments).
+      - name: tournament_category
+        description: Tournament category (from dim_tournaments).
+      - name: season_year
+        description: Season the tournament belongs to.
+      - name: round_name
+        description: Round of the match (Round of 32 … Final, Consolation).
+      - name: match_date
+        description: Date the match was played.
+      - name: start_time
+        description: Start time of the match (24-hour).
+      - name: duration_minutes
+        description: Match duration in minutes.
+      - name: court_id
+        description: Raw court identifier the match was played on.
+      - name: court_number
+        description: Numeric court number parsed from court_id.
+      - name: player1_member_id
+        description: First player.
+      - name: player2_member_id
+        description: Second player.
+      - name: winner_member_id
+        description: Match winner.
+      - name: winner_is_player1
+        description: True if player1 won the match.
+      - name: score
+        description: Final score string (e.g. "6-4, 6-3").
+      - name: sets_played
+        description: Number of sets in the match, parsed from the score.
+
+  - name: int_invoices
+    description: Invoices enriched with member (dim_members) attributes plus derived days_to_pay, is_paid, is_overdue. Feeds fct_invoices.
+    columns:
+      - name: invoice_id
+        description: Unique invoice identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: member_id
+        description: Member billed. ~5% deliberately orphaned ('GHOST-').
+      - name: gender
+        description: Member's gender. NULL for orphaned members.
+      - name: age_group
+        description: Member's age group bucket. NULL for orphaned members.
+      - name: city
+        description: Member's city. NULL for orphaned members.
+      - name: current_type_of_membership
+        description: Member's active membership tier. NULL for orphaned members.
+      - name: invoice_date
+        description: Date the invoice was issued.
+      - name: due_date
+        description: Date payment is due (invoice_date + 30 days).
+      - name: paid_date
+        description: Date the invoice was paid. NULL if unpaid.
+      - name: days_to_pay
+        description: Days between invoice_date and paid_date. NULL if unpaid.
+      - name: total_amount
+        description: Invoice total, in euros.
+      - name: status
+        description: Invoice status (Paid, Pending, Overdue).
+      - name: is_paid
+        description: True if status is Paid.
+      - name: is_overdue
+        description: True if status is Overdue.
+      - name: payment_method
+        description: Payment method (Credit Card, Direct Debit, Bank Transfer, Cash).
+
+  - name: int_invoice_line_items
+    description: Invoice line items joined to their parent invoice (fct_invoices) for invoice_date and member_id. Feeds fct_invoice_line_items.
+    columns:
+      - name: line_item_id
+        description: Unique line-item identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: invoice_id
+        description: Parent invoice.
+      - name: invoice_date
+        description: Date of the parent invoice.
+      - name: member_id
+        description: Member billed (from the parent invoice). ~5% deliberately orphaned ('GHOST-').
+      - name: category
+        description: Line-item category (Membership, Court Fee, Lesson, Pro Shop, …).
+      - name: description
+        description: Free-text line description.
+      - name: quantity
+        description: Quantity billed.
+      - name: unit_amount
+        description: Per-unit amount, in euros.
+      - name: line_amount
+        description: Total line amount (quantity × unit_amount), in euros.
+
+  - name: int_sales_transactions
+    description: Pro-shop sales enriched with product (dim_products) and member (dim_members) attributes plus derived gross_amount. Feeds fct_sales_transactions.
+    columns:
+      - name: transaction_id
+        description: Unique transaction identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: transaction_date
+        description: Date of the sale.
+      - name: member_id
+        description: Member who purchased.
+      - name: gender
+        description: Member's gender (from dim_members).
+      - name: age_group
+        description: Member's age group bucket.
+      - name: city
+        description: Member's city.
+      - name: product_id
+        description: Product sold.
+      - name: product_name
+        description: Product name (from dim_products).
+      - name: product_category
+        description: Product category (from dim_products).
+      - name: product_brand
+        description: Product brand (from dim_products).
+      - name: quantity
+        description: Units sold.
+      - name: unit_price
+        description: Per-unit price, in euros.
+      - name: discount_pct
+        description: Discount percentage applied (0, 10, or 20).
+      - name: gross_amount
+        description: Quantity × unit_price before discount, in euros.
+      - name: net_amount
+        description: Final amount charged after discount, in euros.
+
+  - name: int_equipment_rentals
+    description: Equipment rentals enriched with product (dim_products) and member (dim_members) attributes plus derived rental_duration_days and total_fee. Feeds fct_equipment_rentals.
+    columns:
+      - name: rental_id
+        description: Unique rental identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: member_id
+        description: Member who rented.
+      - name: gender
+        description: Member's gender (from dim_members).
+      - name: age_group
+        description: Member's age group bucket.
+      - name: city
+        description: Member's city.
+      - name: product_id
+        description: Product rented.
+      - name: product_name
+        description: Product name (from dim_products).
+      - name: product_category
+        description: Product category (from dim_products).
+      - name: rental_date
+        description: Date the equipment was rented out.
+      - name: return_date
+        description: Date the equipment was returned. NULL if not yet returned.
+      - name: rental_duration_days
+        description: Days between rental_date and return_date. NULL if not returned.
+      - name: rental_fee
+        description: Base rental fee, in euros.
+      - name: late_fee
+        description: Late-return fee, in euros (0 if on time).
+      - name: total_fee
+        description: rental_fee + late_fee, in euros.
+      - name: was_returned
+        description: True if the equipment has been returned.

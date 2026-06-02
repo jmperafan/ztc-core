@@ -1,5 +1,5 @@
 WITH reservations AS (
-    SELECT * FROM {{ ref("stg_reservations") }}
+    SELECT * FROM {{ ref("int_reservations") }}
 ),
 
 final AS (

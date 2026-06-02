@@ -14,7 +14,17 @@ int_daily_court_stats AS (
 ),
 
 final AS (
-    SELECT * FROM int_daily_court_stats
+    SELECT
+        daily_court_key,
+        court_number,
+        reservation_date,
+        booked_slots,
+        available_slots,
+        total_playable_slots,
+        booked_minutes,
+        available_minutes,
+        utilization_pct
+    FROM int_daily_court_stats
 
     {% if is_incremental() %}
         WHERE reservation_date > (SELECT MAX(reservation_date) FROM {{ this }})  -- noqa: RF02
