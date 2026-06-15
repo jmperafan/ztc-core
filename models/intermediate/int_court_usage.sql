@@ -1,7 +1,7 @@
 WITH
 
 stg_reservations AS (
-    SELECT * FROM {{ ref('stg_reservations') }}
+    SELECT * FROM
 ),
 
 int_court_date_spine AS (
