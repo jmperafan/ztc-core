@@ -1,5 +1,5 @@
 WITH source AS (
-    SELECT * FROM {{ source('ztc', 'club_members') }}
+    SELECT * FROM
 ),
 
 final AS (
