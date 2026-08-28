@@ -1,13 +1,24 @@
 name: "Pre-commit"
 
 # ----------------------------------------------------------------------------
-# Approach: local tooling, no credentials required.
+# Approach: parse the PR's own code to produce a fresh manifest, then run
+# pre-commit against it.
 #
-# Pre-commit hooks catch formatting issues (trailing whitespace, missing
-# newlines, YAML syntax, Python formatting) before code is reviewed.
+# The dbt-checkpoint hooks (description, tests, properties-file, columns) read
+# target/manifest.json to know which models exist. If we downloaded prod's
+# manifest, brand-new models in the PR would always look "missing" because
+# they haven't been deployed yet. Running `dbt parse` here gives pre-commit
+# a manifest that reflects exactly what's on the PR branch.
 #
-# This is the cheapest CI check — it runs entirely without a database or
-# cloud account. Failures here mean the code isn't ready to review yet.
+# dbt Fusion is used here (not dbt-core) because the project relies on
+# vars.yml which is a Fusion-only feature; dbt-core's parser doesn't see
+# those vars and any var() reference fails with NoneType errors.
+# dbt parse is fast (no warehouse round-trip) but still needs a profile
+# that points at Snowflake — Fusion strict-validates the profile during
+# parse.
+#
+# If the Snowflake secrets/vars aren't configured the manifest-aware hooks
+# are skipped via the SKIP env var and the rest of pre-commit still runs.
 # ----------------------------------------------------------------------------
 
 on:
@@ -28,8 +39,46 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install pre-commit deps
         run: pip install -r requirements-dev.txt
+
+      - name: Install dbt Fusion
+        run: |
+          curl -fsSL https://public.cdn.getdbt.com/fs/install/install.sh | sh -s -- --update
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Configure dbt profile and parse
+        id: parse
+        env:
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+        run: |
+          if [ -z "${{ vars.SNOWFLAKE_ACCOUNT }}" ] || [ -z "$SNOWFLAKE_USER" ] || [ -z "$SNOWFLAKE_PASSWORD" ]; then
+            echo "Snowflake secrets/vars not configured — manifest-aware hooks will be skipped."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << EOF
+          ztc_core:
+            target: ci
+            outputs:
+              ci:
+                type: snowflake
+                account: ${{ vars.SNOWFLAKE_ACCOUNT }}
+                user: $SNOWFLAKE_USER
+                password: $SNOWFLAKE_PASSWORD
+                role: ${{ vars.SNOWFLAKE_ROLE }}
+                database: ${{ vars.SNOWFLAKE_DATABASE }}
+                warehouse: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+                schema: ci_precommit
+          EOF
+
+          dbt deps
+          dbt parse
 
       - name: Run pre-commit
         uses: pre-commit/action@v3.0.1
+        env:
+          SKIP: ${{ steps.parse.outputs.skip == 'true' && 'check-model-has-description,check-model-has-tests,check-model-has-properties-file,check-model-columns-have-desc,check-source-has-description,check-source-columns-have-desc' || '' }}

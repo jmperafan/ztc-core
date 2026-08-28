@@ -1,0 +1,61 @@
+name: "dbt manual run"
+
+# ----------------------------------------------------------------------------
+# Approach: trigger a dbt platform job on demand from the GitHub Actions UI.
+#
+# Useful for ad-hoc backfills, one-off production refreshes, or running a
+# narrow subset of models without editing the job's configured commands.
+#
+# Inputs:
+#   cause           — free-text reason recorded on the run
+#   steps_override  — optional newline-separated list of dbt commands; if
+#                     blank, the job's configured commands are used
+#
+# Required secrets:
+#   DBT_CLOUD_API_TOKEN    — dbt platform personal or service account token
+#   DBT_CLOUD_ACCOUNT_ID   — numeric account ID
+#   DBT_CLOUD_PROD_JOB_ID  — job ID to trigger
+#
+# Required variables:
+#   DBT_CLOUD_BASE_URL     — e.g. https://de392.us1.dbt.com (no trailing slash)
+# ----------------------------------------------------------------------------
+
+on:
+  workflow_dispatch:
+    inputs:
+      cause:
+        description: "Reason for this run"
+        required: true
+        default: "Manual run from GitHub Actions"
+      steps_override:
+        description: "Optional dbt commands (one per line). Leave blank to use job defaults."
+        required: false
+
+jobs:
+  manual-dbt-run:
+    name: dbt manual run
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check secrets
+        id: check
+        run: |
+          if [ -z "${{ vars.DBT_CLOUD_BASE_URL }}" ] || [ -z "${{ secrets.DBT_CLOUD_API_TOKEN }}" ] || [ -z "${{ vars.DBT_CLOUD_ACCOUNT_ID }}" ] || [ -z "${{ vars.DBT_CLOUD_PROD_JOB_ID }}" ]; then
+            echo "Required secrets/vars not configured — skipping manual dbt run."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+      - name: Trigger and poll dbt job
+        if: steps.check.outputs.skip != 'true'
+        uses: dbt-labs/dbt-cloud-job-action@v7.1.0
+        with:
+          dbt_cloud_url:        ${{ vars.DBT_CLOUD_BASE_URL }}
+          dbt_cloud_token:      ${{ secrets.DBT_CLOUD_API_TOKEN }}
+          dbt_cloud_account_id: ${{ vars.DBT_CLOUD_ACCOUNT_ID }}
+          dbt_cloud_job_id:     ${{ vars.DBT_CLOUD_PROD_JOB_ID }}
+          cause:                ${{ github.event.inputs.cause }}
+          steps_override:       ${{ github.event.inputs.steps_override }}
+          failure_on_error:     true
+          interval:             30
+          fetch_catalog:        false

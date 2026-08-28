@@ -25,7 +25,10 @@ clean-targets:
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 2. VARIABLES
-# vars values ARE rendered as Jinja at parse time, so env_var() works here.
+# vars values are rendered as Jinja at parse time, so env_var() works here.
+# Kept in dbt_project.yml (not vars.yml) because dbt-core — which dbt Cloud
+# runs — doesn't read vars.yml; only Fusion does. Putting them here works for
+# both engines.
 # ──────────────────────────────────────────────────────────────────────────────
 vars:
   # Override at runtime:  DBT_START_DATE=2023-01-01 dbt run

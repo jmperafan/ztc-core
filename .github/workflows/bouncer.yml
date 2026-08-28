@@ -1,26 +1,20 @@
 name: "dbt Bouncer"
 
 # ----------------------------------------------------------------------------
-# Approach: manifest-based convention enforcement via dbt Cloud API.
+# Approach: parse the PR's own code to produce a fresh manifest, then run
+# dbt-bouncer against it.
 #
-# dbt Bouncer reads the dbt manifest and checks that project conventions are
-# followed — naming patterns, test coverage, lineage rules, and more.
+# Previously this workflow downloaded the latest successful production
+# manifest from dbt Cloud, which by definition can't reflect changes still
+# in a PR (new models, new contracts, new tests). Switching to a local
+# `dbt parse` makes bouncer evaluate what's actually being proposed.
 #
-# Instead of running `dbt parse` (which needs a Snowflake connection), we
-# download the manifest from the latest successful production run via the
-# dbt Cloud API. No database credentials needed in CI.
+# Failures here mean a model on this PR violates a project convention
+# (e.g. missing tests, wrong naming pattern, staging model reading from
+# another model). dbt-bouncer posts a comment on the PR explaining what
+# failed.
 #
-# Failures here mean a model violates a project convention (e.g. missing
-# tests, wrong naming pattern, staging model reading from another model).
-# dbt Bouncer posts a comment on the PR explaining what failed.
-#
-# Required secrets:
-#   DBT_CLOUD_API_TOKEN    — dbt Cloud personal or service account token
-#   DBT_CLOUD_ACCOUNT_ID   — numeric account ID from the dbt Cloud URL
-#   DBT_CLOUD_PROD_JOB_ID  — job ID of your production run job
-#
-# Required variables:
-#   DBT_CLOUD_BASE_URL     — e.g. https://de392.us1.dbt.com (no trailing slash)
+# If the Snowflake secrets/vars aren't configured the job skips cleanly.
 # ----------------------------------------------------------------------------
 
 on:
@@ -39,31 +33,52 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download production manifest from dbt Cloud
-        id: fetch-manifest
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install bouncer deps
+        run: pip install -r requirements-dev.txt
+
+      - name: Install dbt Fusion
         run: |
-          LATEST_RUN=$(curl -s \
-            -H "Authorization: Token ${{ secrets.DBT_CLOUD_API_TOKEN }}" \
-            "${{ vars.DBT_CLOUD_BASE_URL }}/api/v2/accounts/${{ secrets.DBT_CLOUD_ACCOUNT_ID }}/runs/?job_definition_id=${{ secrets.DBT_CLOUD_PROD_JOB_ID }}&status=10&order_by=-finished_at&limit=1")
+          curl -fsSL https://public.cdn.getdbt.com/fs/install/install.sh | sh -s -- --update
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-          RUN_ID=$(echo "$LATEST_RUN" | jq -r '.data[0].id')
-
-          if [ "$RUN_ID" = "null" ] || [ -z "$RUN_ID" ]; then
-            echo "No successful production run found — skipping dbt Bouncer."
-            echo "skip=true" >> $GITHUB_OUTPUT
+      - name: Configure dbt profile and parse
+        id: parse
+        env:
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+        run: |
+          if [ -z "${{ vars.SNOWFLAKE_ACCOUNT }}" ] || [ -z "$SNOWFLAKE_USER" ] || [ -z "$SNOWFLAKE_PASSWORD" ]; then
+            echo "Snowflake secrets/vars not configured — skipping dbt Bouncer."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          mkdir -p target
-          curl -sf \
-            -H "Authorization: Token ${{ secrets.DBT_CLOUD_API_TOKEN }}" \
-            "${{ vars.DBT_CLOUD_BASE_URL }}/api/v2/accounts/${{ secrets.DBT_CLOUD_ACCOUNT_ID }}/runs/$RUN_ID/artifacts/manifest.json" \
-            -o target/manifest.json
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << EOF
+          ztc_core:
+            target: ci
+            outputs:
+              ci:
+                type: snowflake
+                account: ${{ vars.SNOWFLAKE_ACCOUNT }}
+                user: $SNOWFLAKE_USER
+                password: $SNOWFLAKE_PASSWORD
+                role: ${{ vars.SNOWFLAKE_ROLE }}
+                database: ${{ vars.SNOWFLAKE_DATABASE }}
+                warehouse: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+                schema: ci_bouncer
+          EOF
 
-          echo "Downloaded manifest from run $RUN_ID"
+          dbt deps
+          dbt parse
 
       - name: Run dbt Bouncer
-        if: steps.fetch-manifest.outputs.skip != 'true'
+        if: steps.parse.outputs.skip != 'true'
         uses: godatadriven/dbt-bouncer@v3
         env:
           GH_TOKEN: ${{ github.token }}

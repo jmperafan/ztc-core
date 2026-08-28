@@ -1,6 +1,12 @@
-WITH deduped AS (
+WITH
+
+source AS (
+    SELECT * FROM {{ source('ztc', 'court_usage') }}
+),
+
+deduped AS (
     SELECT *
-    FROM {{ source('ztc', 'court_usage') }}
+    FROM source
     QUALIFY ROW_NUMBER() OVER (
         PARTITION BY startdatum, banen, begintijd
         ORDER BY 1
@@ -36,7 +42,7 @@ renamed AS (
 
 final AS (
     SELECT
-        {{ dbt_utils.generate_surrogate_key(['court_number', 'reservation_date', 'start_time']) }} AS reservation_id,
+        {{ dbt_utils.generate_surrogate_key(['court_number', 'reservation_date', 'start_time']) }} AS reservation_id,  -- noqa: TMP,PRS,LT02,LT05
         reservation_date,
         start_time,
         end_time,
