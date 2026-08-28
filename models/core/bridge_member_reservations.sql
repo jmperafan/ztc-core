@@ -27,7 +27,7 @@ final AS (
     -- inferred types (REAL/NUMBER) leak through and break contract validation.
     SELECT
         CAST(r.reservation_id AS VARCHAR) AS reservation_id,
-        CAST(r.member_id AS NUMBER(38,0)) AS member_id
+        CAST(r.member_id AS NUMBER(38, 0)) AS member_id
     FROM reservations AS r
     INNER JOIN members AS m ON r.member_id = m.member_id
 )
