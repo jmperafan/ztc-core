@@ -329,13 +329,13 @@ models:
         data_type: number
         description: Duration of the reservation in minutes.
       - name: day_of_week
-        data_type: number
+        data_type: NUMBER(2,0)
         description: Day-of-week integer (1 = Sunday, 7 = Saturday in Snowflake).
       - name: day_of_week_name
         data_type: varchar
         description: Full day name (e.g. Monday).
       - name: start_hour
-        data_type: number
+        data_type: NUMBER(2,0)
         description: Hour component of start_time (0–23).
       - name: member_id
         data_type: number
@@ -372,7 +372,7 @@ models:
           - unique
           - not_null
       - name: court_number
-        data_type: number
+        data_type: NUMBER(2,0)
         description: Tennis court number (1–5).
         data_tests:
           - not_null
@@ -382,22 +382,22 @@ models:
         data_tests:
           - not_null
       - name: booked_slots
-        data_type: number
+        data_type: NUMBER(13,0)
         description: Number of minute-level slots marked as booked.
       - name: available_slots
-        data_type: number
+        data_type: NUMBER(13,0)
         description: Number of minute-level slots marked as available.
       - name: total_playable_slots
-        data_type: number
+        data_type: NUMBER(13,0)
         description: Total booked + available slots (excludes closed hours).
       - name: booked_minutes
-        data_type: number
+        data_type: NUMBER(22,0)
         description: Total minutes booked on this court on this date.
       - name: available_minutes
-        data_type: number
+        data_type: NUMBER(22,0)
         description: Total playable minutes on this court on this date.
       - name: utilization_pct
-        data_type: number
+        data_type: NUMBER(23,2)
         description: Share of playable minutes that were booked (%).
 
   - name: fct_hourly_weather_usage
@@ -419,23 +419,23 @@ models:
         data_tests:
           - not_null
       - name: start_hour
-        data_type: number
+        data_type: NUMBER(2,0)
         description: Hour of day (0–23).
         data_tests:
           - not_null
       - name: court_number
-        data_type: number
+        data_type: NUMBER(2,0)
         description: Tennis court number (1–5).
         data_tests:
           - not_null
       - name: booked_slots
-        data_type: number
+        data_type: NUMBER(13,0)
         description: Number of minute-level slots marked as booked in this hour.
       - name: available_slots
-        data_type: number
+        data_type: NUMBER(13,0)
         description: Number of minute-level slots available in this hour.
       - name: utilization_pct
-        data_type: number
+        data_type: NUMBER(23,2)
         description: Share of playable slots in this hour that were booked (%).
       - name: temperature
         data_type: float
@@ -484,13 +484,13 @@ models:
         data_type: number
         description: Duration of the reservation in minutes.
       - name: day_of_week
-        data_type: number
+        data_type: NUMBER(2,0)
         description: Day-of-week integer (1 = Sunday, 7 = Saturday in Snowflake).
       - name: day_of_week_name
         data_type: varchar
         description: Full day name (e.g. Monday).
       - name: start_hour
-        data_type: number
+        data_type: NUMBER(2,0)
         description: Hour component of start_time (0–23).
       - name: member_id
         data_type: number
