@@ -34,14 +34,15 @@ sources:
             warn_after: {count: 30, period: day}
             error_after: {count: 90, period: day}
       - name: weather_data
-        description: Weather related data for the city of Utrecht.
+        description: >
+          Weather data for Utrecht. Timestamps are naive local time, so the 02:00 hour
+          legitimately occurs twice during daylight-saving fallback.
         columns:
           - name: datetime
-            description: Timestamp of the observation (hourly). Primary key of this table.
+            description: >
+              Naive local timestamp of the observation. DST duplicate shape is validated
+              by the weather_duplicates_only_during_dst_fallback singular test.
             data_tests:
-              - unique:
-                  config:
-                    severity: warn
               - not_null
         config:
           loaded_at_field: datetime

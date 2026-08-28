@@ -121,16 +121,16 @@ models:
 
   - name: stg_weather_data
     description: >
-      Cleans and renames the raw weather_data source. One row per hour of historical
-      weather observations for Utrecht. All column names are translated from the
-      Visual Crossing API naming convention to readable English.
+      Cleans and renames the raw weather_data source. One row per local wall-clock
+      hour for Utrecht, except the repeated 02:00 hour during daylight-saving fallback.
+      All column names are translated from the Visual Crossing API naming convention
+      to readable English. The canonical local-hour grain is resolved in int_weather_data.
     columns:
       - name: datetime
-        description: Timestamp of the observation (hourly granularity). Primary key.
+        description: >
+          Naive local timestamp of the observation. The 02:00 hour occurs twice during
+          daylight-saving fallback because the source does not include a UTC offset.
         data_tests:
-          - unique:
-              config:
-                severity: warn
           - not_null
       - name: temperature
         description: Air temperature in degrees Celsius.

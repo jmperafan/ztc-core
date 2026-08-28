@@ -1,12 +1,13 @@
 models:
   - name: int_weather_data
     description: >
-      Deduplicated weather observations. Resolves duplicate datetime values from the
-      source system by keeping the first record per hour. This is the canonical
-      weather grain used by fct_weather.
+      Canonical weather observations at one row per naive local hour. The raw source
+      repeats 02:00 during daylight-saving fallback without a UTC offset, so this model
+      retains one deterministic row by full-row hash until ingestion provides an absolute
+      timestamp. Use this local-hour grain for fct_weather.
     columns:
       - name: datetime
-        description: Timestamp of the observation (hourly). Primary key.
+        description: Naive local timestamp of the observation (hourly). Primary key.
         data_tests:
           - unique
           - not_null
