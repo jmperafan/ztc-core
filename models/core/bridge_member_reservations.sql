@@ -15,7 +15,7 @@ members AS (
 final AS (
     SELECT
         r.reservation_id,
-        r.member_id
+        CAST(r.member_id AS NUMBER(38,0)) AS member_id
     FROM reservations AS r
     INNER JOIN members AS m ON r.member_id = m.member_id
 )

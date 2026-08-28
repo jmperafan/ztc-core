@@ -24,7 +24,7 @@ models:
       and membership_length_in_months derived at query time from CURRENT_DATE().
     columns:
       - name: member_id
-        data_type: number
+        data_type: NUMBER(38,0)
         description: Unique club membership number. Primary key.
         data_tests:
           - unique
@@ -123,13 +123,13 @@ models:
         data_type: date
         description: Date the member joined the club.
       - name: age
-        data_type: number
+        data_type: NUMBER(38,0)
         description: Member's current age in years, derived from birth_date at query time.
       - name: age_group
-        data_type: number
+        data_type: NUMBER(38,0)
         description: Age group bucket (floor to nearest decade, e.g. 30 = 30–39).
       - name: membership_length_in_months
-        data_type: number
+        data_type: NUMBER(38,0)
         description: Months since the member joined, derived from member_since at query time.
 
   - name: fct_court_usage
@@ -244,13 +244,14 @@ models:
         data_tests:
           - not_null
       - name: member_id
-        data_type: number
+        data_type: NUMBER(38,0)
         description: Foreign key to dim_members.
         data_tests:
           - not_null
 
   - name: fct_reservations
     config:
+      event_time: reservation_date
       contract:
         enforced: true
     description: >
@@ -279,7 +280,7 @@ models:
         data_type: time
         description: End time of the reservation (TIME, 24-hour).
       - name: court_number
-        data_type: number
+        data_type: NUMBER(38,0)
         description: Tennis court number (1–5).
       - name: reservation_type
         data_type: varchar
@@ -288,7 +289,7 @@ models:
         data_type: varchar
         description: Free-text description of the event or booking.
       - name: duration_in_mins
-        data_type: number
+        data_type: NUMBER(38,0)
         description: Duration of the reservation in minutes.
 
   - name: fct_reservation_events
