@@ -11,10 +11,10 @@ renamed AS (
         player1_member_id,
         player2_member_id,
         court_id,
-        TRY_TO_NUMBER(RIGHT(court_id, 1)) AS court_number,
+        CAST(TRY_TO_NUMBER(RIGHT(court_id, 1)) AS NUMBER(2, 0)) AS court_number,
         match_date,
         start_time,
-        duration_minutes,
+        CAST(duration_minutes AS NUMBER(6, 0)) AS duration_minutes,
         winner_member_id,
         score,
         round_name

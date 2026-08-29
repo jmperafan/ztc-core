@@ -18,7 +18,7 @@ renamed AS (
             ELSE TO_TIME(eindtijd)
         END AS end_time,
         uren AS duration_in_hours,
-        CAST(RIGHT(banen, 1) AS INTEGER) AS court_number,
+        CAST(RIGHT(banen, 1) AS NUMBER(2, 0)) AS court_number,
         inschrijver_persoon1 AS player_1,
         persoon2 AS player_2,
         persoon3 AS player_3,

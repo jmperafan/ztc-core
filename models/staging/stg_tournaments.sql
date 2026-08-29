@@ -12,8 +12,8 @@ renamed AS (
         end_date,
         category,
         entry_fee,
-        max_participants,
-        season_year
+        CAST(max_participants AS NUMBER(6, 0)) AS max_participants,
+        CAST(season_year AS NUMBER(4, 0)) AS season_year
     FROM source
 )
 

@@ -10,7 +10,7 @@ renamed AS (
         invoice_id,
         category,
         description,
-        quantity,
+        CAST(quantity AS NUMBER(6, 0)) AS quantity,
         unit_amount,
         line_amount
     FROM source
