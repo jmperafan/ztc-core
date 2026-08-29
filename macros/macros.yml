@@ -22,22 +22,6 @@ macros:
         type: string
         description: The column or expression containing the Dutch boolean text.
 
-  - name: snowflake__get_hwm
-    description: >
-      Snowflake-specific implementation of the `get_hwm` dispatch target.
-      Called by get_current_hwm / get_previous_hwm via adapter.dispatch.
-      Returns a subquery that resolves to either the current invocation's
-      pending upper bound (complete = false, matched by invocation_id) or
-      the last successful run's upper bound (complete = true). Falls back
-      to `1900-01-01` when no successful run exists.
-    arguments:
-      - name: current
-        type: boolean
-        description: If true, look up the current (pending) HWM; otherwise the previous successful one.
-      - name: relation_obj
-        type: relation
-        description: The upstream relation used as source_name in the watermark table.
-
   - name: age_group
     description: >
       Bins a continuous age value into 10-year groups by flooring to the nearest decade.
@@ -133,62 +117,3 @@ macros:
       - name: date_expr
         type: string
         description: The date column to evaluate.
-
-  - name: set_job_param
-    description: >
-      Pre-hook for the high-watermark (HWM) incremental pattern. Reads the maximum
-      value of the hwm_field from each upstream model or source and records it as the
-      current processing window's upper bound in the watermark table before the model
-      runs. Creates the watermark schema and table on first use. Configure the target
-      model with meta.hwm_field (the timestamp column) and optionally meta.hwm_source_model
-      (to pin a specific upstream node when there are multiple dependencies).
-
-  - name: update_job_param
-    description: >
-      Post-hook for the high-watermark pattern. Marks the current invocation's watermark
-      row as complete after a successful run. On --full-refresh, deletes all existing
-      watermark rows for the target model so the next run starts from the beginning.
-    arguments:
-      - name: success
-        type: boolean
-        description: Whether to mark the run as complete (default true).
-
-  - name: get_current_hwm
-    description: >
-      Returns a subquery that resolves to the upper-bound timestamp recorded by
-      set_job_param for the current invocation. Use in an incremental WHERE clause
-      as the upper bound of the processing window. Dispatches to snowflake__get_hwm.
-    arguments:
-      - name: relation_obj
-        type: relation
-        description: The upstream model relation used as source_name in the watermark table.
-
-  - name: get_previous_hwm
-    description: >
-      Returns a subquery that resolves to the upper-bound timestamp of the last
-      successfully completed run. Use as the lower bound of the processing window.
-      Returns '1900-01-01' when no prior successful run exists (i.e. first run).
-    arguments:
-      - name: relation_obj
-        type: relation
-        description: The upstream model relation used as source_name in the watermark table.
-
-  - name: get_hwm_fqn
-    description: >
-      Returns the fully qualified name of the watermark tracking table
-      (database.schema.table). Driven by the watermark_database, watermark_schema,
-      and watermark_table project variables.
-    arguments:
-      - name: schema
-        type: boolean
-        description: If true, returns only database.schema (no table name).
-
-  - name: create_hwm_table
-    description: >
-      Creates the watermark tracking table if it does not already exist. Called
-      automatically by set_job_param on first use.
-
-  - name: create_watermark_schema
-    description: >
-      Creates the watermark schema if it does not already exist. Called
-      automatically by set_job_param before creating the table.

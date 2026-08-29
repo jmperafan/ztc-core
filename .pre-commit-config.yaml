@@ -110,5 +110,6 @@ repos:
         files: ^models/.+\.ya?ml$
       # check-macro-has-description was tried but is incompatible with this
       # project's macro layout: the hook requires SQL filename == macro name,
-      # and we have multi-macro files (e.g. macros/watermark/utilities.sql).
+      # which does not hold here (e.g. macros/data_cleaning/age_groups.sql
+      # defines age_group).
       # Documenting macros in macros/macros.yml is enforced by convention.
