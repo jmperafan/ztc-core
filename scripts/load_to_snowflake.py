@@ -2,21 +2,26 @@
 Load raw source data into Snowflake, anonymizing club_members PII before upload.
 
 Requires:
-    pip install snowflake-connector-python pandas openpyxl
+    pip install snowflake-connector-python pandas openpyxl cryptography
+
+Authenticates with an RSA key pair; Snowflake retired username+password auth.
 
 Environment variables (set these before running):
-    SNOWFLAKE_ACCOUNT   - e.g. xy12345.us-east-1
-    SNOWFLAKE_USER      - your Snowflake username
-    SNOWFLAKE_PASSWORD  - your Snowflake password
-    SNOWFLAKE_ROLE      - (optional) defaults to SYSADMIN
-    SNOWFLAKE_DATABASE  - (optional) defaults to ZTC_COURT_USAGE
-    SNOWFLAKE_WAREHOUSE - your Snowflake warehouse name
+    SNOWFLAKE_ACCOUNT              - e.g. xy12345.us-east-1
+    SNOWFLAKE_USER                 - your Snowflake username
+    SNOWFLAKE_PRIVATE_KEY_PATH     - path to your PKCS#8 private key (.p8)
+    SNOWFLAKE_PRIVATE_KEY_PASSPHRASE
+                                   - (optional) omit for an unencrypted key
+    SNOWFLAKE_ROLE                 - (optional) defaults to SYSADMIN
+    SNOWFLAKE_DATABASE             - (optional) defaults to ZTC_COURT_USAGE
+    SNOWFLAKE_WAREHOUSE            - your Snowflake warehouse name
 """
 
 import os
 
 import pandas as pd
 import snowflake.connector
+from cryptography.hazmat.primitives import serialization
 from snowflake.connector.pandas_tools import write_pandas
 
 # ---------------------------------------------------------------------------
@@ -24,7 +29,8 @@ from snowflake.connector.pandas_tools import write_pandas
 # ---------------------------------------------------------------------------
 ACCOUNT = os.environ["SNOWFLAKE_ACCOUNT"]
 USER = os.environ["SNOWFLAKE_USER"]
-PASSWORD = os.environ["SNOWFLAKE_PASSWORD"]
+PRIVATE_KEY_PATH = os.environ["SNOWFLAKE_PRIVATE_KEY_PATH"]
+PRIVATE_KEY_PASSPHRASE = os.environ.get("SNOWFLAKE_PRIVATE_KEY_PASSPHRASE")
 ROLE = os.environ.get("SNOWFLAKE_ROLE", "SYSADMIN")
 DATABASE = os.environ.get("SNOWFLAKE_DATABASE", "ZTC_COURT_USAGE")
 WAREHOUSE = os.environ["SNOWFLAKE_WAREHOUSE"]
@@ -50,11 +56,27 @@ PII_COLUMNS = [
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+def load_private_key() -> bytes:
+    """Read the PKCS#8 key and hand it to the connector as unencrypted DER.
+
+    The connector wants raw DER bytes, not a PEM path, so the passphrase is
+    applied here and the decrypted key only ever exists in memory.
+    """
+    passphrase = PRIVATE_KEY_PASSPHRASE.encode() if PRIVATE_KEY_PASSPHRASE else None
+    with open(PRIVATE_KEY_PATH, "rb") as f:
+        key = serialization.load_pem_private_key(f.read(), password=passphrase)
+    return key.private_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+
+
 def get_connection():
     return snowflake.connector.connect(
         account=ACCOUNT,
         user=USER,
-        password=PASSWORD,
+        private_key=load_private_key(),
         role=ROLE,
         warehouse=WAREHOUSE,
     )

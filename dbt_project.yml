@@ -5,6 +5,17 @@
 name: 'ztc_core'
 profile: 'ztc_core'
 
+# ── dbt platform binding ─────────────────────────────────────────────────────
+# Binds this repo to the "ztc-core" project on de392.us1.dbt.com. Required by
+# the dbt platform CLI, which reads warehouse credentials from the platform
+# (Account settings -> Credentials) instead of a local profiles.yml.
+#
+# The Fusion engine binary does not use this for credentials — it still resolves
+# ~/.dbt/profiles.yml — but it does read this block to fetch a deferral
+# manifest, so a valid token in ~/.dbt/dbt_cloud.yml matters for both CLIs.
+dbt-cloud:
+  project-id: 70437463665591
+
 # ── 1. REQUIRE A MINIMUM dbt VERSION ─────────────────────────────────────────
 # Prevents running this project on an older dbt-core that lacks features we use
 # (e.g., microbatch, unit tests, materializations introduced in 1.8).
@@ -26,9 +37,13 @@ clean-targets:
 # ──────────────────────────────────────────────────────────────────────────────
 # 2. VARIABLES
 # vars values are rendered as Jinja at parse time, so env_var() works here.
-# Kept in dbt_project.yml (not vars.yml) because dbt-core — which dbt Cloud
-# runs — doesn't read vars.yml; only Fusion does. Putting them here works for
-# both engines.
+#
+# Kept in dbt_project.yml rather than vars.yml. Local Fusion reads vars.yml
+# fine, but the dbt platform CLI syncs the project to a remote runner and
+# vars.yml does not survive the trip — vars arrive empty and every var()
+# reference fails. Defining them here works for both. Note the two files are
+# mutually exclusive: Fusion errors if vars appear in both, so there is no
+# partial migration.
 # ──────────────────────────────────────────────────────────────────────────────
 vars:
   # Override at runtime:  DBT_START_DATE=2023-01-01 dbt run
