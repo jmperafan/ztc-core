@@ -34,7 +34,28 @@ int_reservations_hwm AS (
 ),
 
 final AS (
-    SELECT * FROM int_reservations_hwm
+    SELECT
+        reservation_id,
+        reservation_date,
+        court_number,
+        start_time,
+        end_time,
+        duration_in_mins,
+        day_of_week,
+        day_of_week_name,
+        start_hour,
+        member_id,
+        gender,
+        age_group,
+        city,
+        current_type_of_membership,
+        is_club_member,
+        is_knltb_member,
+        temperature,
+        precipitation,
+        wind_speed,
+        ideal_weather
+    FROM int_reservations_hwm
 
     {% if is_incremental() %}
         WHERE

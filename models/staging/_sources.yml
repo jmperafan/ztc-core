@@ -49,3 +49,135 @@ sources:
           freshness:
             warn_after: {count: 1, period: day}
             error_after: {count: 3, period: day}
+      # ── Demo expansion tables (coaching, competition, billing, retail) ──
+      # Static historical demo data; no freshness configs by design.
+      - name: coaches
+        description: Tennis coaches employed by the club, with specialty and rate.
+        columns:
+          - name: coach_id
+            description: Unique coach identifier. Primary key of this table.
+            data_tests:
+              - unique
+              - not_null
+        config:
+          loaded_at_field: loaded_at
+          freshness:
+            warn_after: {count: 90, period: day}
+            error_after: {count: 365, period: day}
+      - name: tournaments
+        description: Club tournaments held each season.
+        columns:
+          - name: tournament_id
+            description: Unique tournament identifier. Primary key of this table.
+            data_tests:
+              - unique
+              - not_null
+        config:
+          loaded_at_field: loaded_at
+          freshness:
+            warn_after: {count: 90, period: day}
+            error_after: {count: 365, period: day}
+      - name: products
+        description: Pro-shop catalogue — racquets, balls, strings, apparel, footwear, accessories, and services.
+        columns:
+          - name: product_id
+            description: Unique product identifier. Primary key of this table.
+            data_tests:
+              - unique
+              - not_null
+        config:
+          loaded_at_field: loaded_at
+          freshness:
+            warn_after: {count: 90, period: day}
+            error_after: {count: 365, period: day}
+      - name: lessons
+        description: Individual and group coaching lessons booked by members.
+        columns:
+          - name: lesson_id
+            description: Unique lesson identifier. Primary key of this table.
+            data_tests:
+              - unique
+              - not_null
+        config:
+          loaded_at_field: loaded_at
+          freshness:
+            warn_after: {count: 90, period: day}
+            error_after: {count: 365, period: day}
+      - name: tournament_entries
+        description: Member registrations for tournaments, including final placement.
+        columns:
+          - name: entry_id
+            description: Unique tournament-entry identifier. Primary key of this table.
+            data_tests:
+              - unique
+              - not_null
+        config:
+          loaded_at_field: loaded_at
+          freshness:
+            warn_after: {count: 90, period: day}
+            error_after: {count: 365, period: day}
+      - name: matches
+        description: Individual matches played within tournaments.
+        columns:
+          - name: match_id
+            description: Unique match identifier. Primary key of this table.
+            data_tests:
+              - unique
+              - not_null
+        config:
+          loaded_at_field: loaded_at
+          freshness:
+            warn_after: {count: 90, period: day}
+            error_after: {count: 365, period: day}
+      - name: invoices
+        description: Billing invoice headers issued to members.
+        columns:
+          - name: invoice_id
+            description: Unique invoice identifier. Primary key of this table.
+            data_tests:
+              - unique
+              - not_null
+        config:
+          loaded_at_field: loaded_at
+          freshness:
+            warn_after: {count: 90, period: day}
+            error_after: {count: 365, period: day}
+      - name: invoice_line_items
+        description: Individual line items belonging to invoices.
+        columns:
+          - name: line_item_id
+            description: Unique line-item identifier. Primary key of this table.
+            data_tests:
+              - unique
+              - not_null
+        config:
+          loaded_at_field: loaded_at
+          freshness:
+            warn_after: {count: 90, period: day}
+            error_after: {count: 365, period: day}
+      - name: sales_transactions
+        description: Pro-shop point-of-sale transactions.
+        columns:
+          - name: transaction_id
+            description: Unique transaction identifier. Primary key of this table.
+            data_tests:
+              - unique
+              - not_null
+        config:
+          loaded_at_field: loaded_at
+          freshness:
+            warn_after: {count: 90, period: day}
+            error_after: {count: 365, period: day}
+      - name: equipment_rentals
+        description: Member rentals of rentable equipment (racquets, bags, ball hoppers).
+        columns:
+          - name: rental_id
+            description: Unique rental identifier. Primary key of this table.
+            data_tests:
+              - unique
+              - not_null
+        config:
+          loaded_at_field: loaded_at
+          freshness:
+            warn_after: {count: 90, period: day}
+            error_after: {count: 365, period: day}

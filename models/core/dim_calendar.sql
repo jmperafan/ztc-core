@@ -12,4 +12,4 @@ final AS (
     ORDER BY date_key DESC
 )
 
-SELECT * FROM final
+SELECT date_key FROM final
