@@ -112,4 +112,6 @@ repos:
       # project's macro layout: the hook requires SQL filename == macro name,
       # which does not hold here (e.g. macros/data_cleaning/age_groups.sql
       # defines age_group).
-      # Documenting macros in macros/macros.yml is enforced by convention.
+      # Macro descriptions are enforced by dbt-bouncer instead
+      # (check_macro_description_populated). Each macro subdirectory carries its
+      # own _<dir>__macros.yml property file, per dbt's structure guide.

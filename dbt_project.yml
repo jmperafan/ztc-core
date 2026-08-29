@@ -68,6 +68,11 @@ models:
     +persist_docs:             # propagates model/column descriptions to Snowflake
       relation: true
       columns: true
+    # Every model has an owner, including staging and intermediate. The core
+    # layer overrides this block below to add an SLA; meta dicts are merged,
+    # so owner is inherited rather than restated.
+    +meta:
+      owner: "data-engineering"
 
     # ── 3a. STAGING LAYER ────────────────────────────────────────────────────
     # private: only models in this project can ref staging models

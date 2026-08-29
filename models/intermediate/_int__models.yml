@@ -178,7 +178,7 @@ models:
 
   - name: int_court_date_spine
     description: >
-      Cross-join of all court numbers and all calendar dates from dim_calendar.
+      Cross-join of all court numbers and all calendar dates from int_date_spine.
       Produces a complete grid of every court × date combination, which is used
       downstream in int_court_usage to detect days with no bookings (empty_days).
     columns:
@@ -187,7 +187,7 @@ models:
         data_tests:
           - not_null
       - name: reservation_date
-        description: Calendar date, sourced from dim_calendar.
+        description: Calendar date, sourced from int_date_spine.
         data_tests:
           - not_null
 
@@ -300,7 +300,7 @@ models:
     description: >
       Court usage aggregated to hourly grain (court × date × hour), excluding
       winter-break and closed hours, joined with hourly weather observations
-      from fct_weather. Feeds the thin fct_hourly_weather_usage mart.
+      from int_weather_data. Feeds the thin fct_hourly_weather_usage mart.
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
@@ -333,7 +333,7 @@ models:
   - name: int_reservation_events
     description: >
       Actual court bookings enriched with member demographics via
-      bridge_member_reservations and dim_members. Adds day_of_week,
+      int_member_reservations and int_club_members_enriched. Adds day_of_week,
       day_of_week_name, and start_hour. Feeds the thin fct_reservation_events
       microbatch mart.
     columns:
@@ -359,7 +359,7 @@ models:
       - name: start_hour
         description: Hour component of start_time (0–23).
       - name: member_id
-        description: Foreign key to dim_members. NULL for guest bookings.
+        description: Foreign key to int_club_members_enriched. NULL for guest bookings.
       - name: gender
         description: Member's gender. NULL for unlinked bookings.
       - name: age_group
@@ -459,7 +459,7 @@ models:
         description: True if stock_quantity is greater than zero.
 
   - name: int_lessons
-    description: Lessons enriched with coach (dim_coaches) and member (dim_members) attributes, plus derived time/flag fields. Feeds fct_lessons.
+    description: Lessons enriched with coach (int_coaches) and member (int_club_members_enriched) attributes, plus derived time/flag fields. Feeds fct_lessons.
     columns:
       - name: lesson_id
         description: Unique lesson identifier. Primary key.
@@ -497,9 +497,9 @@ models:
       - name: coach_id
         description: Coach who taught the lesson.
       - name: coach_name
-        description: Coach full name (from dim_coaches).
+        description: Coach full name (from int_coaches).
       - name: coach_specialty
-        description: Coach specialty (from dim_coaches).
+        description: Coach specialty (from int_coaches).
       - name: member_id
         description: Member who booked the lesson. ~5% deliberately orphaned ('GHOST-').
       - name: gender
@@ -514,7 +514,7 @@ models:
         description: Timestamp the lesson record was created.
 
   - name: int_tournament_entries
-    description: Tournament entries enriched with tournament (dim_tournaments) and member (dim_members) attributes. Feeds fct_tournament_entries.
+    description: Tournament entries enriched with tournament (int_tournaments) and member (int_club_members_enriched) attributes. Feeds fct_tournament_entries.
     columns:
       - name: entry_id
         description: Unique tournament-entry identifier. Primary key.
@@ -524,9 +524,9 @@ models:
       - name: tournament_id
         description: Tournament registered for.
       - name: tournament_name
-        description: Tournament name (from dim_tournaments).
+        description: Tournament name (from int_tournaments).
       - name: tournament_category
-        description: Tournament category (from dim_tournaments).
+        description: Tournament category (from int_tournaments).
       - name: season_year
         description: Season the tournament belongs to.
       - name: registration_date
@@ -549,7 +549,7 @@ models:
         description: Member's city. NULL for orphaned members.
 
   - name: int_matches
-    description: Matches enriched with tournament (dim_tournaments) attributes plus derived winner_is_player1 and sets_played. Feeds fct_matches.
+    description: Matches enriched with tournament (int_tournaments) attributes plus derived winner_is_player1 and sets_played. Feeds fct_matches.
     columns:
       - name: match_id
         description: Unique match identifier. Primary key.
@@ -559,9 +559,9 @@ models:
       - name: tournament_id
         description: Tournament the match belongs to.
       - name: tournament_name
-        description: Tournament name (from dim_tournaments).
+        description: Tournament name (from int_tournaments).
       - name: tournament_category
-        description: Tournament category (from dim_tournaments).
+        description: Tournament category (from int_tournaments).
       - name: season_year
         description: Season the tournament belongs to.
       - name: round_name
@@ -590,7 +590,7 @@ models:
         description: Number of sets in the match, parsed from the score.
 
   - name: int_invoices
-    description: Invoices enriched with member (dim_members) attributes plus derived days_to_pay, is_paid, is_overdue. Feeds fct_invoices.
+    description: Invoices enriched with member (int_club_members_enriched) attributes plus derived days_to_pay, is_paid, is_overdue. Feeds fct_invoices.
     columns:
       - name: invoice_id
         description: Unique invoice identifier. Primary key.
@@ -627,7 +627,7 @@ models:
         description: Payment method (Credit Card, Direct Debit, Bank Transfer, Cash).
 
   - name: int_invoice_line_items
-    description: Invoice line items joined to their parent invoice (fct_invoices) for invoice_date and member_id. Feeds fct_invoice_line_items.
+    description: Invoice line items joined to their parent invoice (int_invoices) for invoice_date and member_id. Feeds fct_invoice_line_items.
     columns:
       - name: line_item_id
         description: Unique line-item identifier. Primary key.
@@ -652,7 +652,7 @@ models:
         description: Total line amount (quantity × unit_amount), in euros.
 
   - name: int_sales_transactions
-    description: Pro-shop sales enriched with product (dim_products) and member (dim_members) attributes plus derived gross_amount. Feeds fct_sales_transactions.
+    description: Pro-shop sales enriched with product (int_products) and member (int_club_members_enriched) attributes plus derived gross_amount. Feeds fct_sales_transactions.
     columns:
       - name: transaction_id
         description: Unique transaction identifier. Primary key.
@@ -664,7 +664,7 @@ models:
       - name: member_id
         description: Member who purchased.
       - name: gender
-        description: Member's gender (from dim_members).
+        description: Member's gender (from int_club_members_enriched).
       - name: age_group
         description: Member's age group bucket.
       - name: city
@@ -672,11 +672,11 @@ models:
       - name: product_id
         description: Product sold.
       - name: product_name
-        description: Product name (from dim_products).
+        description: Product name (from int_products).
       - name: product_category
-        description: Product category (from dim_products).
+        description: Product category (from int_products).
       - name: product_brand
-        description: Product brand (from dim_products).
+        description: Product brand (from int_products).
       - name: quantity
         description: Units sold.
       - name: unit_price
@@ -689,7 +689,7 @@ models:
         description: Final amount charged after discount, in euros.
 
   - name: int_equipment_rentals
-    description: Equipment rentals enriched with product (dim_products) and member (dim_members) attributes plus derived rental_duration_days and total_fee. Feeds fct_equipment_rentals.
+    description: Equipment rentals enriched with product (int_products) and member (int_club_members_enriched) attributes plus derived rental_duration_days and total_fee. Feeds fct_equipment_rentals.
     columns:
       - name: rental_id
         description: Unique rental identifier. Primary key.
@@ -699,7 +699,7 @@ models:
       - name: member_id
         description: Member who rented.
       - name: gender
-        description: Member's gender (from dim_members).
+        description: Member's gender (from int_club_members_enriched).
       - name: age_group
         description: Member's age group bucket.
       - name: city
@@ -707,9 +707,9 @@ models:
       - name: product_id
         description: Product rented.
       - name: product_name
-        description: Product name (from dim_products).
+        description: Product name (from int_products).
       - name: product_category
-        description: Product category (from dim_products).
+        description: Product category (from int_products).
       - name: rental_date
         description: Date the equipment was rented out.
       - name: return_date
@@ -724,3 +724,95 @@ models:
         description: rental_fee + late_fee, in euros.
       - name: was_returned
         description: True if the equipment has been returned.
+
+  - name: int_date_spine
+    description: >
+      Date spine covering every calendar day from the start_date variable to the
+      current date, generated with a recursive CTE. Lives in the intermediate
+      layer so other intermediate models can build on it without depending on
+      the published core layer; dim_calendar is a passthrough of this model.
+    columns:
+      - name: date_key
+        description: Calendar date. Primary key.
+        data_tests:
+          - unique
+          - not_null
+
+  - name: int_club_members_enriched
+    description: >
+      Deduplicated club members plus the attributes derived at query time from
+      CURRENT_DATE(): age, age_group bucket, and membership length in months.
+      This enrichment previously lived in dim_members, which forced intermediate
+      models needing age_group to depend on the core layer. It is the member
+      grain every intermediate fact joins to, and dim_members publishes it
+      unchanged.
+    columns:
+      - name: member_id
+        description: Unique club membership number. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: age
+        description: >
+          Member's age in whole years, derived from birth_date at query time.
+          NULL when birth_date is missing.
+      - name: age_group
+        description: Age group bucket (floor to nearest decade, e.g. 30 = 30–39).
+      - name: membership_length_in_months
+        description: >
+          Whole months between member_since and the current date. NULL when
+          member_since is missing.
+
+  - name: int_reservations_enriched
+    description: >
+      Deduplicated reservations with the presentation types and derived time
+      columns that fct_reservations publishes under contract: start_time and
+      end_time as TIME, court_number pinned to NUMBER(2,0), and the reservation
+      duration in minutes. The casts live here so intermediate consumers get the
+      same types without depending on the core layer.
+    columns:
+      - name: reservation_id
+        description: Deterministic surrogate key — hash of (court_number, reservation_date, start_time). Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: reservation_date
+        description: Calendar date on which the reservation takes place.
+        data_tests:
+          - not_null
+      - name: reservation_start
+        description: Full TIMESTAMP combining reservation_date and start_time.
+      - name: reservation_end
+        description: Full TIMESTAMP combining reservation_date and end_time.
+      - name: start_time
+        description: Time the reservation starts (TIME, 24-hour).
+      - name: end_time
+        description: Time the reservation ends (TIME, 24-hour).
+      - name: court_number
+        description: Tennis court number (1–5).
+        data_tests:
+          - not_null
+      - name: reservation_type
+        description: Category of the reservation as provided by the source system.
+      - name: event_description
+        description: Free-text description of the event or booking.
+      - name: duration_in_mins
+        description: Duration of the reservation in minutes.
+
+  - name: int_member_reservations
+    description: >
+      Bridge between reservations and members: one row per reservation whose
+      member_id resolves to a known member, with both keys cast to the types
+      bridge_member_reservations publishes under contract. Reservations with no
+      member (guest and club bookings) are dropped by the inner join, which is
+      what makes this a bridge rather than a fact.
+    columns:
+      - name: reservation_id
+        description: Foreign key to int_reservations_enriched. Primary key of this bridge.
+        data_tests:
+          - unique
+          - not_null
+      - name: member_id
+        description: Club membership number of the booking member.
+        data_tests:
+          - not_null

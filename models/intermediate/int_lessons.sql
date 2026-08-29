@@ -4,12 +4,12 @@ stg_lessons AS (
     SELECT * FROM {{ ref('stg_lessons') }}
 ),
 
-dim_coaches AS (
-    SELECT * FROM {{ ref('dim_coaches') }}
+int_coaches AS (
+    SELECT * FROM {{ ref('int_coaches') }}
 ),
 
-dim_members AS (
-    SELECT * FROM {{ ref('dim_members') }}
+int_club_members_enriched AS (
+    SELECT * FROM {{ ref('int_club_members_enriched') }}
 ),
 
 final AS (
@@ -39,8 +39,8 @@ final AS (
         m.current_type_of_membership,
         l.created_at
     FROM stg_lessons AS l
-    LEFT JOIN dim_coaches AS c ON l.coach_id = c.coach_id
-    LEFT JOIN dim_members AS m ON l.member_id = m.member_id::varchar
+    LEFT JOIN int_coaches AS c ON l.coach_id = c.coach_id
+    LEFT JOIN int_club_members_enriched AS m ON l.member_id = m.member_id::varchar
 )
 
 SELECT * FROM final

@@ -1,0 +1,30 @@
+macros:
+  - name: generate_schema_name
+    description: >
+      Overrides dbt's built-in schema name generation. In production (target.name == 'prod'),
+      models with a custom schema are placed directly into that schema (e.g. `staging`, `core`,
+      `marts`). In all other environments, the custom schema is prefixed with the target schema
+      to namespace runs by developer (e.g. `dbt_jperafan_staging`). Models without a custom
+      schema always use the target schema as-is.
+    arguments:
+      - name: custom_schema_name
+        type: string
+        description: The custom schema from the model config (+schema). Null if not set.
+      - name: node_obj
+        type: any
+        description: The dbt node object for the model being compiled.
+
+  - name: check_target
+    description: >
+      Diagnostic macro that logs every field on the dbt `target` object plus
+      core run context (dbt_version, invocation_id, run_started_at, execute).
+      Useful when verifying which warehouse/role/database a run is pointed at,
+      or when debugging schema-name generation. Invoke with `dbt run-operation
+      check_target`.
+
+  - name: precipitation_alert_threshold
+    description: >
+      Returns the precipitation level in millimetres above which outdoor conditions
+      are flagged as unsuitable for play. Reads the DBT_PRECIPITATION_ALERT_MM
+      environment variable; defaults to 2 mm when the variable is not set.
+      Demonstrates the env_var() pattern for runtime-configurable thresholds.

@@ -4,12 +4,12 @@ stg_tournament_entries AS (
     SELECT * FROM {{ ref('stg_tournament_entries') }}
 ),
 
-dim_tournaments AS (
-    SELECT * FROM {{ ref('dim_tournaments') }}
+int_tournaments AS (
+    SELECT * FROM {{ ref('int_tournaments') }}
 ),
 
-dim_members AS (
-    SELECT * FROM {{ ref('dim_members') }}
+int_club_members_enriched AS (
+    SELECT * FROM {{ ref('int_club_members_enriched') }}
 ),
 
 final AS (
@@ -29,8 +29,8 @@ final AS (
         m.age_group,
         m.city
     FROM stg_tournament_entries AS e
-    LEFT JOIN dim_tournaments AS t ON e.tournament_id = t.tournament_id
-    LEFT JOIN dim_members AS m ON e.member_id = m.member_id::varchar
+    LEFT JOIN int_tournaments AS t ON e.tournament_id = t.tournament_id
+    LEFT JOIN int_club_members_enriched AS m ON e.member_id = m.member_id::varchar
 )
 
 SELECT * FROM final

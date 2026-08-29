@@ -1,3 +1,11 @@
+-- Materialized as a table: three downstream models read this, so as a view
+-- its minute-level slot expansion would be recomputed three times per run.
+{{
+  config(
+    materialized='table'
+  )
+}}
+
 WITH
 
 int_court_usage AS (

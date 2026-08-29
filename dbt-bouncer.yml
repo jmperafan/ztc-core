@@ -6,11 +6,46 @@ dbt_artifacts_dir: target
 # This project is the authoritative source of truth for ZTC data. All public
 # core models are consumed by ztc_analytics via cross-project refs, so we
 # enforce contracts, descriptions, naming conventions, and test coverage here.
+#
+# ── HOW THIS FILE IS ORGANISED ───────────────────────────────────────────────
+# Rules are grouped into three tiers so the file doubles as a reusable
+# "strict team" template:
+#
+#   TIER 1 (enforced)  — no-brainers that this project already satisfies.
+#                        A violation here is a regression. Fails the build.
+#   TIER 2 (warn)      — no-brainers this project does NOT yet satisfy. Each
+#                        one records the current violation count so the debt is
+#                        visible. Flip `severity: warn` to error once cleaned.
+#   TIER 3 (opt-in)    — commented out. Defensible rules that are either
+#                        opinionated, warehouse-specific, or incompatible with
+#                        this project's conventions. The reason is stated on
+#                        each so nobody has to re-litigate it.
+#
+# Values marked EDIT ME are project-specific — change them when lifting this
+# file into another repo.
+#
+# Validated against dbt-bouncer 3.8.0 (the GitHub Action is pinned to v3).
+# Tier 1 was verified green against target/manifest.json; Tier 2 counts are
+# from the same run.
 # ──────────────────────────────────────────────────────────────────────────────
 
 manifest_checks:
 
-  # ── Naming conventions ────────────────────────────────────────────────────
+  # ════════════════════════════════════════════════════════════════════════════
+  # TIER 1 — ENFORCED (build fails)
+  # ════════════════════════════════════════════════════════════════════════════
+
+  # ── Project metadata & layout ───────────────────────────────────────────────
+  - name: check_project_name
+    project_name_pattern: ^ztc_          # EDIT ME: your org's package prefix
+
+  # Only the three canonical layers may exist under models/. A new top-level
+  # folder is a structural decision, not something that lands in a PR by accident.
+  - name: check_model_directories
+    include: ^models
+    permitted_sub_directories: [staging, intermediate, core]
+
+  # ── Naming conventions ──────────────────────────────────────────────────────
   - name: check_model_names
     include: ^models/staging
     model_name_pattern: ^stg_
@@ -23,41 +58,455 @@ manifest_checks:
     include: ^models/core
     model_name_pattern: ^(fct_|dim_|bridge_)
 
-  # ── Descriptions required on every model ─────────────────────────────────
+  - name: check_model_file_name
+    file_name_pattern: ^[a-z][a-z0-9_]*\.sql$
+
+  # Target-dependent: dev schemas are prefixed (dbt_jperafan_core), so the
+  # pattern is anchored on the suffix only.
+  - name: check_model_schema_name
+    schema_name_pattern: .*(staging|intermediate|core)$
+
+  - name: check_model_documented_in_same_directory
+
+  - name: check_source_names
+    source_name_pattern: ^[a-z][a-z0-9_]*$
+
+  - name: check_source_file_name
+    file_name_pattern: ^_[a-z][a-z0-9_]*\.yml$
+
+  - name: check_snapshot_names
+    snapshot_name_pattern: ^snap_
+
+  # ── Documentation ───────────────────────────────────────────────────────────
+  # A one-word description is worse than none — it looks documented. The length
+  # floor is what turns this from a box-tick into a real gate.
   - name: check_model_description_populated
-    include: ^models/
+    min_description_length: 50
 
-  # ── Column-level descriptions on core models are enforced by dbt-checkpoint
-  # (check-model-columns-have-desc) in the pre-commit workflow. dbt-bouncer
-  # dropped its column-documentation check in newer versions.
+  - name: check_model_documentation_coverage
+    min_model_documentation_coverage_pct: 100
 
-  # ── Contracts must be enforced on every public core model ─────────────────
+  - name: check_source_description_populated
+    min_description_length: 30
+
+  - name: check_snapshot_description_populated
+  - name: check_seed_description_populated
+  - name: check_macro_arguments_description_populated
+  - name: check_exposure_description_populated
+
+  # An exposure without a reachable human is an outage waiting to happen.
+  - name: check_exposure_has_owner
+    required_fields: [email, name]
+
+  # Column-level description coverage is enforced by dbt-checkpoint
+  # (check-model-columns-have-desc / check-source-columns-have-desc) in
+  # .pre-commit-config.yaml. dbt-bouncer's equivalents
+  # (check_columns_are_all_documented, check_column_description_populated) live
+  # in `catalog_checks`, which need target/catalog.json from `dbt docs
+  # generate`; the bouncer workflow only runs `dbt parse`. See the commented
+  # catalog_checks block at the bottom.
+
+  # ── Test coverage ───────────────────────────────────────────────────────────
+  - name: check_model_has_tests_by_type
+    min_number_of_schema_tests: 1
+
+  # Every core model carries both a not_null and a unique test.
+  - name: check_model_has_tests_by_name
+    include: ^models/core
+    test_names: [not_null, unique]
+    min_number_of_tests: 1
+
+  # Belt and braces: also accepts dbt_utils/dbt_expectations compound-uniqueness
+  # tests, which the composite-grain facts use instead of a plain `unique`.
+  - name: check_model_has_unique_test
+    include: ^models/core
+
+  - name: check_model_test_coverage
+    min_model_test_coverage_pct: 100
+
+  - name: check_source_has_tests
+    min_number_of_tests: 1
+
+  # ── Governance, access & contracts ──────────────────────────────────────────
+  # Mirrors the +access config in dbt_project.yml. Declaring it in both places
+  # is deliberate: dbt_project.yml sets the default, bouncer stops a per-model
+  # override from silently publishing an implementation detail.
+  - name: check_model_access
+    include: ^models/staging
+    access: private
+
+  - name: check_model_access
+    include: ^models/intermediate
+    access: private
+
+  - name: check_model_access
+    include: ^models/core
+    access: public
+
   # The 3 incremental marts are excluded because incremental + contracts +
   # on_schema_change=fail traps on Snowflake's natural NUMBER(p,s) precisions
-  # drifting from a generic `number` contract declaration. They keep table
-  # materializations.
+  # drifting from a generic `number` contract declaration.
   - name: check_model_has_contracts_enforced
     include: ^models/core
     exclude: ^models/core/(fct_reservation_events|fct_daily_court_stats|fct_hourly_weather_usage)\.sql$
 
-  # ── Every core model must have a uniqueness test on its primary key ───────
-  # The previous check_model_has_tests_by_name (which also enforced not_null)
-  # was removed upstream; dbt-checkpoint's check-model-has-tests catches the
-  # broader "has at least one test" case for staging.
-  - name: check_model_has_unique_test
+  # Catches the inverse mistake: a model marked public anywhere in the project
+  # without a contract. Same exclusions, same reason.
+  - name: check_model_contract_enforced_for_public_model
+    exclude: ^models/core/(fct_reservation_events|fct_daily_court_stats|fct_hourly_weather_usage)\.sql$
+
+  - name: check_model_columns_have_types
     include: ^models/core
 
-  # ── Keep the DAG shallow: cap direct dependents per model ─────────────────
+  # Contracts pin types; constraints pin grain. All 16 contracted core models
+  # now declare a column-level primary_key constraint on their key column
+  # (with warn_unenforced: false — Snowflake accepts PK constraints but does
+  # not enforce them, and the uniqueness guarantee comes from the unique test).
+  #
+  # This check is the one that verifies it: exactly one column-level primary
+  # key per core model. It was vacuously green before the constraints existed —
+  # it only fails on *more than one* PK — so it is real coverage only now.
+  - name: check_model_single_primary_key
+    include: ^models/core
+
+  # Matches the +meta blocks in dbt_project.yml: owner is set project-wide,
+  # the core layer adds an SLA.
+  - name: check_model_has_meta_keys
+    keys: [owner]
+
+  - name: check_model_has_meta_keys
+    include: ^models/core
+    keys: [owner, sla]                   # EDIT ME
+
+  - name: check_model_has_tags
+    include: ^models/core
+    tags: [core]
+
+  # Downstream projects can only read what has been granted.
+  - name: check_model_grant_privilege_required
+    include: ^models/core
+    privilege: select
+
+  # A model handing out more than a few privileges is usually a copy-paste
+  # accident, not a decision.
+  - name: check_model_number_of_grants
+    max_number_of_privileges: 3
+
+  # PII guardrail: any source column that looks personal must be labelled, so
+  # masking policies and access reviews have something to key off.
+  - name: check_source_pii_meta
+    column_name_pattern: ^(email|phone|address|ssn|dob|birth).*
+    meta_key: pii
+
+  # ── SQL quality ─────────────────────────────────────────────────────────────
+  - name: check_model_hard_coded_references   # bare schema.table instead of ref()/source()
+  - name: check_model_has_semi_colon          # breaks CTAS wrapping
+
+  - name: check_model_max_number_of_lines
+    max_number_of_lines: 150
+
+  # Unfinished work must not reach main under a comment.
+  - name: check_model_code_does_not_contain_regexp_pattern
+    regexp_pattern: (?i).*(TODO|FIXME|HACK|XXX).*
+
+  - name: check_macro_code_does_not_contain_regexp_pattern
+    regexp_pattern: (?i).*(TODO|FIXME|HACK|XXX).*
+
+  # Materialization is a layer-level decision, not a per-model preference.
+  - name: check_model_materialization_permitted
+    include: ^models/staging
+    permitted_materializations: [view]
+
+  # `table` is permitted in the intermediate layer, but only as a deliberate
+  # exception for high-fanout hubs — int_court_slots and int_reservations each
+  # feed 3 models, so as views their logic was recomputed 3x per run. The layer
+  # default in dbt_project.yml is still view; check_model_materialization_by_fanout
+  # below is what decides when an exception is warranted.
+  - name: check_model_materialization_permitted
+    include: ^models/intermediate
+    permitted_materializations: [view, ephemeral, table]
+
+  - name: check_model_materialization_permitted
+    include: ^models/core
+    permitted_materializations: [table, incremental]
+
+  - name: check_macro_max_number_of_lines
+    max_number_of_lines: 50
+
+  - name: check_macro_max_number_of_arguments
+    max_number_of_arguments: 5
+
+  # ── DAG hygiene ─────────────────────────────────────────────────────────────
+  # Staging is a 1:1 mirror of a raw table — no early joins.
+  - name: check_model_depends_on_multiple_sources
+    include: ^models/staging
+
+  # Only staging may touch raw. Everything downstream goes through ref().
+  - name: check_lineage_source_cannot_be_used
+    exclude: ^models/staging
+
+  - name: check_lineage_seed_cannot_be_used
+    exclude: ^models/staging
+
+  # Staging models read sources only, never other models.
+  - name: check_lineage_permitted_upstream_models
+    include: ^models/staging
+    upstream_path_pattern: $^
+
+  # Core models build on intermediate/core, never directly on staging.
+  - name: check_lineage_permitted_upstream_models
+    include: ^models/core
+    upstream_path_pattern: ^models/(intermediate|core)
+
   # dim_members is a conformed hub consumed by the reservations pipeline plus
   # the coaching/billing/retail facts (7 direct dependents), so the cap is 8.
   - name: check_model_max_fanout
-    include: ^models/
     max_downstream_models: 8
 
-  # ── Source freshness: all sources must declare a loaded_at_field ──────────
-  - name: check_source_freshness_populated
-    include: ^models/staging
+  # A model that joins half the project is a model nobody can reason about.
+  - name: check_model_max_upstream_dependencies
+    max_upstream_models: 5
+    max_upstream_sources: 1
+    max_upstream_macros: 5
 
-  # ── Staging models must reference at most one source (no early raw joins) ─
-  - name: check_model_depends_on_multiple_sources
-    include: ^models/staging
+  # ── Sources ─────────────────────────────────────────────────────────────────
+  - name: check_source_freshness_populated
+  - name: check_source_loader_populated              # how does this data arrive?
+  - name: check_duplicate_sources                    # same table declared twice
+  - name: check_source_not_orphaned                  # declared but never used
+  - name: check_source_used_by_models_in_same_directory
+  - name: check_source_used_by_only_one_model        # enforces the 1:1 staging mirror
+
+  - name: check_source_min_downstream_models
+    min_number_of_models: 1
+
+  - name: check_source_has_meta_keys
+    keys: [owner]
+
+  - name: check_source_has_tags
+    tags: [raw]
+
+  # ── Property file locations (dbt's structure guide) ──────────────────────────
+  # _stg__models.yml, _int__models.yml, _core__models.yml, _ztc__sources.yml,
+  # and a _<dir>__macros.yml per macro subdirectory. Layer-scoped property files
+  # mean you can always guess which file documents a given model.
+  - name: check_model_property_file_location
+  - name: check_source_property_file_location
+  - name: check_macro_property_file_location
+
+  # ── Macros ──────────────────────────────────────────────────────────────────
+  # Custom macros and generic tests are API surface for everyone writing models.
+  - name: check_macro_description_populated
+
+  # ── Snapshots & seeds ───────────────────────────────────────────────────────
+  - name: check_snapshot_has_unique_key
+  - name: check_snapshot_strategy
+    allowed_strategies: [check, timestamp]
+  - name: check_seed_columns_have_types
+  - name: check_seed_names
+    seed_name_pattern: ^seed_
+
+  # ── Exposures & semantic models ─────────────────────────────────────────────
+  # An exposure must not sit on a view (unpredictable cost) or on a private
+  # model (breaks the contract boundary).
+  - name: check_exposure_based_on_view
+  - name: check_exposure_based_on_non_public_models
+  - name: check_semantic_model_based_on_non_public_models
+
+  - name: check_exposure_based_on_model
+    maximum_number_of_models: 5
+
+  # Intermediate models build on staging/intermediate only — never on core.
+  # Core is the published layer; an intermediate model reading from it makes
+  # core load-order-sensitive and risks a cycle. The enrichment that used to
+  # force this inversion (member age_group, reservation duration, the
+  # member-reservation bridge, the date spine) now lives in the intermediate
+  # layer, and the core models publish it unchanged.
+  - name: check_lineage_permitted_upstream_models
+    include: ^models/intermediate
+    upstream_path_pattern: ^models/(staging|intermediate)
+
+  # Any model at least 3 other models read gets materialized rather than
+  # recomputed per consumer. int_court_slots, int_reservations,
+  # int_club_members_enriched, int_products and int_tournaments are tables for
+  # this reason — see the materialization exception note above.
+  - name: check_model_materialization_by_fanout
+    min_downstream_models: 3
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # TIER 2 — WARN (known debt; flip to error once the count reaches zero)
+  # ════════════════════════════════════════════════════════════════════════════
+
+  # 4 violations: fct_hourly_weather_usage, fct_invoice_line_items, fct_lessons,
+  # int_court_slots.
+  #
+  # Read the name with care: this counts every non-table ANCESTOR, not the
+  # length of the longest chain. fct_hourly_weather_usage has 7 (two staging
+  # views, int_court_usage, int_court_date_spine, int_date_spine,
+  # int_weather_data, int_hourly_weather_usage). Since staging is always a view
+  # by convention, every mart starts with at least one, so a threshold of 3 is
+  # only reachable by materializing intermediate models that have no fanout
+  # justification — which is what check_model_materialization_by_fanout above
+  # is for. Left as warn because the count is still useful signal on where the
+  # deep parts of the DAG are; raise the threshold or drop the rule if the noise
+  # outweighs that.
+  - name: check_model_max_chained_views
+    max_chained_views: 3
+    severity: warn
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # TIER 3 — OPT-IN (deliberately disabled)
+  # ════════════════════════════════════════════════════════════════════════════
+
+  # Does not understand the microbatch strategy. fct_reservation_events is
+  # microbatch, which achieves idempotency by replacing whole batches selected
+  # by event_time — unique_key is not used and dbt ignores it. The check only
+  # tests `materialized == 'incremental'`, so it reports a false positive.
+  # Re-enable with an exclusion for microbatch models if a merge/delete+insert
+  # incremental ever lands.
+  # - name: check_model_incremental_has_unique_key
+
+  # Requires one canonical description per column NAME across the whole
+  # project. Sounds obvious, is not: `status` legitimately means invoice status
+  # in fct_invoices and lesson status in fct_lessons, and `category` differs per
+  # entity. It also treats a deliberate caveat ("NULL for orphaned members") as
+  # a conflict. ~60 column names are flagged, the large majority correctly
+  # documented. The real fix for the genuine drift (e.g. "°C" vs "degrees
+  # Celsius") is doc blocks, not this rule.
+  # - name: check_column_descriptions_are_consistent
+
+  # Cannot see `dbt run-operation` or downstream cross-project usage, so it
+  # flags macros that are used-but-not-by-a-model. check_target is a diagnostic
+  # invoked via run-operation, and precipitation_alert_threshold exists to
+  # demonstrate the env_var() pattern. Both are intentional.
+  # - name: check_macro_is_used
+
+  # Reads only MODEL-level `constraints:`, not the column-level constraints this
+  # project uses. Our 16 contracted core models declare their primary key on the
+  # key column, which is the idiomatic form for a single-column key and is what
+  # check_model_single_primary_key (Tier 1, above) verifies. Enabling this rule
+  # would require moving the declarations to model level; declaring both forms
+  # emits two PRIMARY KEY clauses and breaks the CREATE TABLE. Switch to
+  # model-level constraints only if a composite grain needs declaring.
+  # - name: check_model_has_constraints
+  #   include: ^models/core
+  #   required_constraint_types: [primary_key]
+
+  # Fires on the idiomatic dbt pattern: `SELECT * FROM {{ ref(...) }}` in an
+  # import CTE and `SELECT * FROM final` at the end of a model. 50 violations
+  # here, all of them the recommended style. Only enable if the team has
+  # decided to enumerate columns everywhere.
+  # - name: check_model_does_not_use_select_star
+
+  # Requires SQL filename == macro name. Incompatible with this project's
+  # layout (macros/data_cleaning/age_groups.sql defines age_group). Same reason
+  # check-macro-has-description is omitted from .pre-commit-config.yaml.
+  # - name: check_macro_name_matches_file_name
+
+  # 0% unit test coverage today. Worth turning on with a low floor once the
+  # first unit tests land, rather than as an unreachable 100%.
+  # - name: check_unit_test_coverage
+  #   min_unit_test_coverage_pct: 50
+  # - name: check_model_has_unit_tests
+  #   include: ^models/core
+  #   min_number_of_unit_tests: 1
+  # - name: check_unit_test_given_formats
+  #   permitted_formats: [csv, dict]
+  # - name: check_unit_test_expect_format
+  #   permitted_formats: [csv, dict]
+
+  # Requiring `owner` meta or a `where` config on all 151 tests is noise, not
+  # governance — the model already carries the owner.
+  # - name: check_test_has_meta_keys
+  #   keys: [owner]
+  # - name: check_test_has_where_config
+
+  # `labels` is a BigQuery concept; this project is on Snowflake and uses
+  # `meta` instead.
+  # - name: check_model_has_labels_keys
+  #   keys: [owner]
+  # - name: check_source_has_labels_keys
+  #   keys: [owner]
+
+  # The default pattern is `_fk$`; this project names foreign keys `_id`, which
+  # also matches every dimension's own primary key, so the check demands
+  # relationships tests on PKs (15 violations, mostly false). Enable after
+  # adopting an `_fk` suffix, or narrow the include to facts only.
+  # - name: check_model_columns_have_relationship_tests
+  #   include: ^models/core/fct_
+  #   column_name_pattern: _fk$
+
+  # Model versioning is not in use here. Turn all three on the day the first
+  # `v2` model appears, not before.
+  # - name: check_model_latest_version_specified
+  # - name: check_model_version_pinned_in_ref
+  # - name: check_model_version_allowed
+  #   version_pattern: ^[0-9]+$
+
+  # Flags root models (no ref/source parents). dim_calendar is a legitimate
+  # generated spine, so this needs an exclusion list to be usable.
+  # - name: check_model_has_no_upstream_dependencies
+
+  # Every core model must be reachable from an exposure. Good discipline, but it
+  # blocks landing a model before its dashboard exists.
+  # - name: check_model_has_exposure
+  #   include: ^models/core
+
+  # Forces a house macro (e.g. a sampling or audit macro) into every model.
+  # - name: check_model_depends_on_macros
+  #   required_macros: [dbt.is_incremental]
+
+  # Leftover `limit N` in a model. Currently clean, but the pattern is
+  # brittle — it also matches a legitimate `limit` inside a window frame or a
+  # qualify clause on some warehouses. Enable if dev leftovers become a habit.
+  # - name: check_model_code_does_not_contain_regexp_pattern
+  #   regexp_pattern: (?is).*\blimit\s+\d+\s*$
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CATALOG CHECKS — require target/catalog.json (`dbt docs generate`)
+#
+# The bouncer workflow only runs `dbt parse`, so enabling this block without
+# also adding `dbt docs generate` to .github/workflows/bouncer.yml will make
+# the job fail on a missing artifact. These checks compare declared YAML
+# against what actually exists in the warehouse, which is the one thing the
+# manifest cannot tell you — worth the extra CI minutes for a foundation
+# project.
+# ══════════════════════════════════════════════════════════════════════════════
+# catalog_checks:
+#   # Undocumented columns that exist in the warehouse but not in YAML.
+#   - name: check_columns_are_all_documented
+#   - name: check_columns_are_documented_in_public_models
+#     min_description_length: 30
+#   - name: check_column_description_populated
+#     min_description_length: 30
+#   - name: check_source_columns_are_all_documented
+#   - name: check_seed_columns_are_all_documented
+#   # Warehouse-verified naming: booleans read as predicates, dates as dates.
+#   - name: check_column_names
+#     column_name_pattern: ^[a-z][a-z0-9_]*$
+#   - name: check_column_name_complies_to_column_type
+#     types: [BOOLEAN]
+#     column_name_pattern: ^(is|has|had|does|did|should)_
+#   - name: check_column_name_complies_to_column_type
+#     types: [DATE]
+#     column_name_pattern: .*_date$|^date_.*
+#   - name: check_column_type_complies_to_column_name
+#     column_name_pattern: ^(is|has|had|does|did|should)_
+#     types: [BOOLEAN]
+#   # Every boolean and every id gets a not_null test.
+#   - name: check_column_has_specified_test
+#     column_name_pattern: ^(is|has)_
+#     test_name: not_null
+#   - name: check_column_has_specified_test
+#     column_name_pattern: _id$
+#     test_name: not_null
+
+# ══════════════════════════════════════════════════════════════════════════════
+# RUN RESULTS CHECKS — require target/run_results.json from a real `dbt build`
+#
+# `dbt parse` writes a run_results.json containing only the parse step, so these
+# are only meaningful when pointed at the artifacts of a production run.
+# ══════════════════════════════════════════════════════════════════════════════
+# run_results_checks:
+#   - name: check_run_results_max_execution_time
+#     max_execution_time_seconds: 300
