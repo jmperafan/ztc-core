@@ -24,7 +24,6 @@ require-dbt-version: ">=1.8.0"
 
 # ── File-path configuration (unchanged) ──────────────────────────────────────
 model-paths: ["models"]
-analysis-paths: ["analyses"]
 test-paths: ["tests"]
 seed-paths: ["seeds"]
 macro-paths: ["macros"]
