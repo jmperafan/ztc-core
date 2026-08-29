@@ -1,7 +1,7 @@
 WITH
 
-stg_reservations AS (
-    SELECT * FROM {{ ref('stg_reservations') }}
+int_reservations AS (
+    SELECT * FROM {{ ref('int_reservations') }}
 ),
 
 int_court_date_spine AS (
@@ -23,7 +23,7 @@ reservations AS (
         end_time,
         reservation_type,
         event_description
-    FROM stg_reservations
+    FROM int_reservations
     WHERE
         start_time >= TIME '{{ var("opening_time") }}'
         AND end_time <= TIME '{{ var("closing_time") }}'
