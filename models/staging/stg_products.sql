@@ -13,7 +13,7 @@ renamed AS (
         unit_price,
         is_rentable,
         rental_fee,
-        stock_quantity
+        CAST(stock_quantity AS NUMBER(9, 0)) AS stock_quantity
     FROM source
 )
 

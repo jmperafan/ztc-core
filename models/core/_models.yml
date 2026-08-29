@@ -123,13 +123,13 @@ models:
         data_type: date
         description: Date the member joined the club.
       - name: age
-        data_type: NUMBER(38,0)
+        data_type: NUMBER(3,0)
         description: Member's current age in years, derived from birth_date at query time.
       - name: age_group
-        data_type: NUMBER(38,0)
+        data_type: NUMBER(3,0)
         description: Age group bucket (floor to nearest decade, e.g. 30 = 30–39).
       - name: membership_length_in_months
-        data_type: NUMBER(38,0)
+        data_type: NUMBER(6,0)
         description: Months since the member joined, derived from member_since at query time.
 
   - name: fct_court_usage
@@ -281,7 +281,7 @@ models:
         data_type: time
         description: End time of the reservation (TIME, 24-hour).
       - name: court_number
-        data_type: NUMBER(38,0)
+        data_type: NUMBER(2,0)
         description: Tennis court number (1–5).
       - name: reservation_type
         data_type: varchar
@@ -315,7 +315,7 @@ models:
         data_tests:
           - not_null
       - name: court_number
-        data_type: number
+        data_type: NUMBER(2,0)
         description: Tennis court number (1–5).
         data_tests:
           - not_null
@@ -344,7 +344,7 @@ models:
         data_type: varchar
         description: Member's gender. NULL for unlinked bookings.
       - name: age_group
-        data_type: number
+        data_type: NUMBER(3,0)
         description: Member's age group bucket. NULL for unlinked bookings.
       - name: city
         data_type: varchar
@@ -470,7 +470,7 @@ models:
         data_tests:
           - not_null
       - name: court_number
-        data_type: number
+        data_type: NUMBER(2,0)
         description: Tennis court number (1–5).
         data_tests:
           - not_null
@@ -499,7 +499,7 @@ models:
         data_type: varchar
         description: Member's gender. NULL for unlinked bookings.
       - name: age_group
-        data_type: number
+        data_type: NUMBER(3,0)
         description: Member's age group bucket. NULL for unlinked bookings.
       - name: city
         data_type: varchar
@@ -607,10 +607,10 @@ models:
         data_type: NUMBER(6,2)
         description: Entry fee per participant, in euros.
       - name: max_participants
-        data_type: number
+        data_type: NUMBER(6,0)
         description: Maximum participant capacity.
       - name: season_year
-        data_type: number
+        data_type: NUMBER(4,0)
         description: Season the tournament belongs to.
 
   - name: dim_products
@@ -644,7 +644,7 @@ models:
         data_type: NUMBER(6,2)
         description: Rental fee, in euros. NULL for non-rentable products.
       - name: stock_quantity
-        data_type: number
+        data_type: NUMBER(9,0)
         description: Units currently in stock.
       - name: is_service
         data_type: boolean
@@ -684,7 +684,7 @@ models:
         data_type: boolean
         description: True if the lesson falls on Saturday or Sunday.
       - name: duration_minutes
-        data_type: number
+        data_type: NUMBER(6,0)
         description: Lesson duration in minutes.
       - name: lesson_type
         data_type: varchar
@@ -705,7 +705,7 @@ models:
         data_type: varchar
         description: Raw court identifier the lesson was booked on. 'COURT-X' for orphaned bookings.
       - name: court_number
-        data_type: number
+        data_type: NUMBER(2,0)
         description: Numeric court number parsed from court_id. NULL for orphaned 'COURT-X' bookings.
       - name: coach_id
         data_type: varchar
@@ -735,7 +735,7 @@ models:
         data_type: varchar
         description: Member's gender (from dim_members). NULL for orphaned members.
       - name: age_group
-        data_type: number
+        data_type: NUMBER(3,0)
         description: Member's age group bucket. NULL for orphaned members.
       - name: city
         data_type: varchar
@@ -774,13 +774,13 @@ models:
         data_type: varchar
         description: Tournament category (from dim_tournaments).
       - name: season_year
-        data_type: number
+        data_type: NUMBER(4,0)
         description: Season the tournament belongs to.
       - name: registration_date
         data_type: date
         description: Date the member registered.
       - name: seed
-        data_type: number
+        data_type: NUMBER(4,0)
         description: Seeding position within the tournament (1 = top seed).
       - name: entry_fee_paid
         data_type: NUMBER(6,2)
@@ -805,7 +805,7 @@ models:
         data_type: varchar
         description: Member's gender. NULL for orphaned members.
       - name: age_group
-        data_type: number
+        data_type: NUMBER(3,0)
         description: Member's age group bucket. NULL for orphaned members.
       - name: city
         data_type: varchar
@@ -838,7 +838,7 @@ models:
         data_type: varchar
         description: Tournament category (from dim_tournaments).
       - name: season_year
-        data_type: number
+        data_type: NUMBER(4,0)
         description: Season the tournament belongs to.
       - name: round_name
         data_type: varchar
@@ -850,13 +850,13 @@ models:
         data_type: time
         description: Start time of the match (24-hour).
       - name: duration_minutes
-        data_type: number
+        data_type: NUMBER(6,0)
         description: Match duration in minutes.
       - name: court_id
         data_type: varchar
         description: Raw court identifier the match was played on.
       - name: court_number
-        data_type: number
+        data_type: NUMBER(2,0)
         description: Numeric court number parsed from court_id.
       - name: player1_member_id
         data_type: varchar
@@ -918,7 +918,7 @@ models:
         data_type: varchar
         description: Member's gender. NULL for orphaned members.
       - name: age_group
-        data_type: number
+        data_type: NUMBER(3,0)
         description: Member's age group bucket. NULL for orphaned members.
       - name: city
         data_type: varchar
@@ -994,7 +994,7 @@ models:
         data_type: varchar
         description: Free-text line description.
       - name: quantity
-        data_type: number
+        data_type: NUMBER(6,0)
         description: Quantity billed.
       - name: unit_amount
         data_type: NUMBER(8,2)
@@ -1030,7 +1030,7 @@ models:
         data_type: varchar
         description: Member's gender (from dim_members).
       - name: age_group
-        data_type: number
+        data_type: NUMBER(3,0)
         description: Member's age group bucket.
       - name: city
         data_type: varchar
@@ -1053,7 +1053,7 @@ models:
         data_type: varchar
         description: Product brand (from dim_products).
       - name: quantity
-        data_type: number
+        data_type: NUMBER(6,0)
         description: Units sold.
       - name: unit_price
         data_type: NUMBER(8,2)
@@ -1062,7 +1062,7 @@ models:
         data_type: NUMBER(4,2)
         description: Discount percentage applied (0, 10, or 20).
       - name: gross_amount
-        data_type: NUMBER(38,2)
+        data_type: NUMBER(14,2)
         description: Quantity × unit_price before discount, in euros.
       - name: net_amount
         data_type: NUMBER(10,2)
@@ -1092,7 +1092,7 @@ models:
         data_type: varchar
         description: Member's gender (from dim_members).
       - name: age_group
-        data_type: number
+        data_type: NUMBER(3,0)
         description: Member's age group bucket.
       - name: city
         data_type: varchar

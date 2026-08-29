@@ -10,7 +10,7 @@ renamed AS (
         member_id,
         product_id,
         transaction_date,
-        quantity,
+        CAST(quantity AS NUMBER(6, 0)) AS quantity,
         unit_price,
         discount_pct,
         total_amount
