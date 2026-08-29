@@ -4,8 +4,8 @@ stg_matches AS (
     SELECT * FROM {{ ref('stg_matches') }}
 ),
 
-dim_tournaments AS (
-    SELECT * FROM {{ ref('dim_tournaments') }}
+int_tournaments AS (
+    SELECT * FROM {{ ref('int_tournaments') }}
 ),
 
 final AS (
@@ -28,7 +28,7 @@ final AS (
         m.score,
         REGEXP_COUNT(m.score, ',') + 1 AS sets_played
     FROM stg_matches AS m
-    LEFT JOIN dim_tournaments AS t ON m.tournament_id = t.tournament_id
+    LEFT JOIN int_tournaments AS t ON m.tournament_id = t.tournament_id
 )
 
 SELECT * FROM final

@@ -13,7 +13,7 @@ final AS (
         wind_gust,
         wind_speed,
         solar_energy,
-        {{ tennis_weather("temperature", "precipitation", "wind_speed") }} AS ideal_weather
+        ideal_weather
     FROM source
 )
 

@@ -1,5 +1,5 @@
 WITH club_members AS (
-    SELECT * FROM {{ ref("int_club_members") }}
+    SELECT * FROM {{ ref("int_club_members_enriched") }}
 ),
 
 final AS (
@@ -36,9 +36,9 @@ final AS (
         volunteer_type,
         birth_date,
         member_since,
-        CAST(DATEDIFF('year', birth_date, CURRENT_DATE()) AS NUMBER(3, 0)) AS age,
-        CAST({{ age_group("age") }} AS NUMBER(3, 0)) AS age_group,
-        CAST(DATEDIFF('month', member_since, CURRENT_DATE()) AS NUMBER(6, 0)) AS membership_length_in_months
+        age,
+        age_group,
+        membership_length_in_months
     FROM club_members
 )
 

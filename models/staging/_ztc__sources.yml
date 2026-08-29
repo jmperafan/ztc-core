@@ -3,6 +3,15 @@ sources:
     description: Raw data from the Zuilense Tennis Club reservation system, member roster, and Utrecht weather feed. Landed in the RAW.ZTC schema by upstream ingestion.
     database: RAW
     schema: ZTC
+    # How the data physically arrives. Declared once at source level so every
+    # table inherits it — this is the first thing anyone debugging a stale
+    # source needs to know.
+    loader: scripts/load_to_snowflake.py
+    # Source-level config propagates to every table below.
+    config:
+      tags: ["raw"]
+      meta:
+        owner: "data-engineering"
     tables:
       - name: court_usage
         description: This table contains the reservations for our courts.

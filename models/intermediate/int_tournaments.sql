@@ -1,3 +1,10 @@
+-- Materialized as a table: three downstream models read this.
+{{
+  config(
+    materialized='table'
+  )
+}}
+
 WITH
 
 stg_tournaments AS (

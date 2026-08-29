@@ -4,8 +4,8 @@ stg_invoice_line_items AS (
     SELECT * FROM {{ ref('stg_invoice_line_items') }}
 ),
 
-fct_invoices AS (
-    SELECT * FROM {{ ref('fct_invoices') }}
+int_invoices AS (
+    SELECT * FROM {{ ref('int_invoices') }}
 ),
 
 final AS (
@@ -20,7 +20,7 @@ final AS (
         li.unit_amount,
         li.line_amount
     FROM stg_invoice_line_items AS li
-    LEFT JOIN fct_invoices AS i ON li.invoice_id = i.invoice_id
+    LEFT JOIN int_invoices AS i ON li.invoice_id = i.invoice_id
 )
 
 SELECT * FROM final

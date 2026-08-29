@@ -1,7 +1,7 @@
 WITH
 
-dim_calendar AS (
-    SELECT * FROM {{ ref('dim_calendar') }}
+int_date_spine AS (
+    SELECT * FROM {{ ref('int_date_spine') }}
 ),
 
 final AS (
@@ -9,7 +9,7 @@ final AS (
         SELECT
             {{ court_number }} AS court_number,
             date_key AS reservation_date
-        FROM dim_calendar
+        FROM int_date_spine
         {%- if not loop.last %} UNION DISTINCT {% endif -%}
     {% endfor %}
 )

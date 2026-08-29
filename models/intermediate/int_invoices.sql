@@ -4,8 +4,8 @@ stg_invoices AS (
     SELECT * FROM {{ ref('stg_invoices') }}
 ),
 
-dim_members AS (
-    SELECT * FROM {{ ref('dim_members') }}
+int_club_members_enriched AS (
+    SELECT * FROM {{ ref('int_club_members_enriched') }}
 ),
 
 final AS (
@@ -26,7 +26,7 @@ final AS (
         i.status = 'Overdue' AS is_overdue,
         i.payment_method
     FROM stg_invoices AS i
-    LEFT JOIN dim_members AS m ON i.member_id = m.member_id::varchar
+    LEFT JOIN int_club_members_enriched AS m ON i.member_id = m.member_id::varchar
 )
 
 SELECT * FROM final

@@ -4,12 +4,12 @@ stg_equipment_rentals AS (
     SELECT * FROM {{ ref('stg_equipment_rentals') }}
 ),
 
-dim_products AS (
-    SELECT * FROM {{ ref('dim_products') }}
+int_products AS (
+    SELECT * FROM {{ ref('int_products') }}
 ),
 
-dim_members AS (
-    SELECT * FROM {{ ref('dim_members') }}
+int_club_members_enriched AS (
+    SELECT * FROM {{ ref('int_club_members_enriched') }}
 ),
 
 final AS (
@@ -30,8 +30,8 @@ final AS (
         ROUND(r.rental_fee + r.late_fee, 2) AS total_fee,
         r.was_returned
     FROM stg_equipment_rentals AS r
-    LEFT JOIN dim_products AS p ON r.product_id = p.product_id
-    LEFT JOIN dim_members AS m ON r.member_id = m.member_id::varchar
+    LEFT JOIN int_products AS p ON r.product_id = p.product_id
+    LEFT JOIN int_club_members_enriched AS m ON r.member_id = m.member_id::varchar
 )
 
 SELECT * FROM final

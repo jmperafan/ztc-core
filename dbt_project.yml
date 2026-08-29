@@ -47,8 +47,6 @@ clean-targets:
 vars:
   # Override at runtime:  DBT_START_DATE=2023-01-01 dbt run
   start_date: "{{ env_var('DBT_START_DATE', '2022-01-01') }}"
-  watermark_schema: watermark
-  watermark_table: dbt_high_watermark
   opening_time: "{{ env_var('ZTC_OPENING_TIME', '08:00:00') }}"
   closing_time: "{{ env_var('ZTC_CLOSING_TIME', '23:00:00') }}"
   court_numbers: [1, 2, 3, 4, 5]
@@ -70,6 +68,11 @@ models:
     +persist_docs:             # propagates model/column descriptions to Snowflake
       relation: true
       columns: true
+    # Every model has an owner, including staging and intermediate. The core
+    # layer overrides this block below to add an SLA; meta dicts are merged,
+    # so owner is inherited rather than restated.
+    +meta:
+      owner: "data-engineering"
 
     # ── 3a. STAGING LAYER ────────────────────────────────────────────────────
     # private: only models in this project can ref staging models

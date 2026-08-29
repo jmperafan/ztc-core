@@ -1,0 +1,24 @@
+macros:
+  - name: test_string_relationships
+    description: >
+      Generic data test — a type-tolerant variant of dbt's built-in
+      `relationships` test that casts both sides to VARCHAR before comparing.
+      Use it for foreign keys whose child column and parent key have different
+      types: the demo facts carry member_id as VARCHAR (including 'GHOST-'
+      orphans) while dim_members.member_id is NUMBER, so the built-in test
+      fails on the implicit cast rather than on referential integrity.
+      Returns child rows whose FK is non-null but has no match in the parent.
+      Reference it in YAML as `string_relationships` (dbt adds the test_ prefix).
+    arguments:
+      - name: model
+        type: relation
+        description: The model being tested (injected automatically by dbt).
+      - name: column_name
+        type: string
+        description: The child foreign-key column to validate.
+      - name: to
+        type: relation
+        description: The parent relation to look the key up in, e.g. ref('dim_members').
+      - name: field
+        type: string
+        description: The key column on the parent relation.

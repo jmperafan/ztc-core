@@ -6,16 +6,16 @@
 
 WITH
 
-fct_reservations AS (
-    SELECT * FROM {{ ref('fct_reservations') }}
+int_reservations_enriched AS (
+    SELECT * FROM {{ ref('int_reservations_enriched') }}
 ),
 
-bridge_member_reservations AS (
-    SELECT * FROM {{ ref('bridge_member_reservations') }}
+int_member_reservations AS (
+    SELECT * FROM {{ ref('int_member_reservations') }}
 ),
 
-dim_members AS (
-    SELECT * FROM {{ ref('dim_members') }}
+int_club_members_enriched AS (
+    SELECT * FROM {{ ref('int_club_members_enriched') }}
 ),
 
 reservations AS (
@@ -29,7 +29,7 @@ reservations AS (
         DAYOFWEEK(reservation_date) AS day_of_week,
         DAYNAME(reservation_date) AS day_of_week_name,
         HOUR(start_time) AS start_hour
-    FROM fct_reservations
+    FROM int_reservations_enriched
     WHERE reservation_type = 'Gereserveerd'
 ),
 
@@ -37,7 +37,7 @@ member_bridge AS (
     SELECT
         reservation_id,
         member_id
-    FROM bridge_member_reservations
+    FROM int_member_reservations
 ),
 
 member_profiles AS (
@@ -49,7 +49,7 @@ member_profiles AS (
         current_type_of_membership,
         is_club_member,
         is_knltb_member
-    FROM dim_members
+    FROM int_club_members_enriched
 ),
 
 final AS (

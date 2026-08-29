@@ -4,8 +4,8 @@ int_court_slots AS (
     SELECT * FROM {{ ref('int_court_slots') }}
 ),
 
-fct_weather AS (
-    SELECT * FROM {{ ref('fct_weather') }}
+int_weather_data AS (
+    SELECT * FROM {{ ref('int_weather_data') }}
 ),
 
 hourly_usage AS (
@@ -35,7 +35,7 @@ weather AS (
         precipitation,
         wind_speed,
         ideal_weather
-    FROM fct_weather
+    FROM int_weather_data
 ),
 
 final AS (

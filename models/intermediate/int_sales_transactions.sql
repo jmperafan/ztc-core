@@ -4,12 +4,12 @@ stg_sales_transactions AS (
     SELECT * FROM {{ ref('stg_sales_transactions') }}
 ),
 
-dim_products AS (
-    SELECT * FROM {{ ref('dim_products') }}
+int_products AS (
+    SELECT * FROM {{ ref('int_products') }}
 ),
 
-dim_members AS (
-    SELECT * FROM {{ ref('dim_members') }}
+int_club_members_enriched AS (
+    SELECT * FROM {{ ref('int_club_members_enriched') }}
 ),
 
 final AS (
@@ -30,8 +30,8 @@ final AS (
         ROUND(s.quantity * s.unit_price, 2) AS gross_amount,
         s.total_amount AS net_amount
     FROM stg_sales_transactions AS s
-    LEFT JOIN dim_products AS p ON s.product_id = p.product_id
-    LEFT JOIN dim_members AS m ON s.member_id = m.member_id::varchar
+    LEFT JOIN int_products AS p ON s.product_id = p.product_id
+    LEFT JOIN int_club_members_enriched AS m ON s.member_id = m.member_id::varchar
 )
 
 SELECT * FROM final

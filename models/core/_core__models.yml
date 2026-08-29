@@ -5,10 +5,18 @@ models:
         enforced: true
     description: >
       Date dimension covering every calendar day from start_date to the current date.
-      Generated with a recursive CTE. Use date_key to join to fact tables on
-      reservation_date or similar date columns.
+      Published unchanged from int_date_spine, which generates the range with a
+      recursive CTE. Use date_key to join to fact tables on reservation_date or
+      similar date columns.
     columns:
       - name: date_key
+        constraints:
+          # warn_unenforced: Snowflake accepts PK constraints but does not
+          # enforce them. The constraint documents the grain in the DDL and the
+          # catalogue; the uniqueness guarantee comes from the unique test
+          # below. Silences dbt1109, which would otherwise fire on every build.
+          - type: primary_key
+            warn_unenforced: false
         data_type: date
         description: Calendar date. Primary key.
         data_tests:
@@ -24,6 +32,13 @@ models:
       and membership_length_in_months derived at query time from CURRENT_DATE().
     columns:
       - name: member_id
+        constraints:
+          # warn_unenforced: Snowflake accepts PK constraints but does not
+          # enforce them. The constraint documents the grain in the DDL and the
+          # catalogue; the uniqueness guarantee comes from the unique test
+          # below. Silences dbt1109, which would otherwise fire on every build.
+          - type: primary_key
+            warn_unenforced: false
         data_type: NUMBER(38,0)
         description: Unique club membership number. Primary key.
         data_tests:
@@ -142,6 +157,13 @@ models:
       court utilization as booked minutes divided by available minutes.
     columns:
       - name: slot_key
+        constraints:
+          # warn_unenforced: Snowflake accepts PK constraints but does not
+          # enforce them. The constraint documents the grain in the DDL and the
+          # catalogue; the uniqueness guarantee comes from the unique test
+          # below. Silences dbt1109, which would otherwise fire on every build.
+          - type: primary_key
+            warn_unenforced: false
         data_type: varchar
         description: >
           Surrogate primary key composed of court_number, reservation_date,
@@ -194,6 +216,13 @@ models:
       no precipitation, wind speed at or below 20 km/h.
     columns:
       - name: datetime
+        constraints:
+          # warn_unenforced: Snowflake accepts PK constraints but does not
+          # enforce them. The constraint documents the grain in the DDL and the
+          # catalogue; the uniqueness guarantee comes from the unique test
+          # below. Silences dbt1109, which would otherwise fire on every build.
+          - type: primary_key
+            warn_unenforced: false
         data_type: timestamp_ntz
         description: Timestamp of the observation, truncated to the hour. Primary key.
         data_tests:
@@ -234,11 +263,19 @@ models:
       contract:
         enforced: true
     description: >
-      Bridge table linking reservations to members. Filters out reservations with
-      no member ID and ensures referential integrity with dim_members via an inner
-      join. One row per reservation that can be attributed to a known club member.
+      Bridge table linking reservations to members. Published unchanged from
+      int_member_reservations, which drops reservations with no member ID and
+      enforces referential integrity against the member grain via an inner join.
+      One row per reservation that can be attributed to a known club member.
     columns:
       - name: reservation_id
+        constraints:
+          # warn_unenforced: Snowflake accepts PK constraints but does not
+          # enforce them. The constraint documents the grain in the DDL and the
+          # catalogue; the uniqueness guarantee comes from the unique test
+          # below. Silences dbt1109, which would otherwise fire on every build.
+          - type: primary_key
+            warn_unenforced: false
         data_type: varchar
         description: Foreign key to fct_reservations. Primary key of this bridge.
         data_tests:
@@ -260,6 +297,13 @@ models:
       bookings — no gap-fill rows, no available/closed slots.
     columns:
       - name: reservation_id
+        constraints:
+          # warn_unenforced: Snowflake accepts PK constraints but does not
+          # enforce them. The constraint documents the grain in the DDL and the
+          # catalogue; the uniqueness guarantee comes from the unique test
+          # below. Silences dbt1109, which would otherwise fire on every build.
+          - type: primary_key
+            warn_unenforced: false
         data_type: varchar
         description: Deterministic surrogate key — hash of (court_number, reservation_date, start_time). Primary key.
         data_tests:
@@ -450,83 +494,6 @@ models:
         data_type: boolean
         description: True when conditions are ideal for tennis (temp 10–35°C, no rain, wind ≤ 20 km/h).
 
-  - name: fct_reservations_hwm
-    # Contract intentionally not enforced: see comment on fct_reservation_events.
-    description: >
-      One row per actual court booking enriched with member demographics and weather.
-      Built with the High Watermark pattern: the upper-bound timestamp is stored in
-      a central watermark table before execution, making processing windows mutually
-      exclusive and collectively exhaustive.
-    columns:
-      - name: reservation_id
-        data_type: varchar
-        description: Surrogate key for the reservation. Primary key.
-        data_tests:
-          - unique
-          - not_null
-      - name: reservation_date
-        data_type: date
-        description: Calendar date of the booking.
-        data_tests:
-          - not_null
-      - name: court_number
-        data_type: NUMBER(2,0)
-        description: Tennis court number (1–5).
-        data_tests:
-          - not_null
-      - name: start_time
-        data_type: time
-        description: Start time of the reservation (TIME, 24-hour).
-      - name: end_time
-        data_type: time
-        description: End time of the reservation (TIME, 24-hour).
-      - name: duration_in_mins
-        data_type: number
-        description: Duration of the reservation in minutes.
-      - name: day_of_week
-        data_type: NUMBER(2,0)
-        description: Day-of-week integer (1 = Sunday, 7 = Saturday in Snowflake).
-      - name: day_of_week_name
-        data_type: varchar
-        description: Full day name (e.g. Monday).
-      - name: start_hour
-        data_type: NUMBER(2,0)
-        description: Hour component of start_time (0–23).
-      - name: member_id
-        data_type: number
-        description: Foreign key to dim_members. NULL for guest bookings.
-      - name: gender
-        data_type: varchar
-        description: Member's gender. NULL for unlinked bookings.
-      - name: age_group
-        data_type: NUMBER(3,0)
-        description: Member's age group bucket. NULL for unlinked bookings.
-      - name: city
-        data_type: varchar
-        description: Member's city of residence. NULL for unlinked bookings.
-      - name: current_type_of_membership
-        data_type: varchar
-        description: Member's active membership tier. NULL for unlinked bookings.
-      - name: is_club_member
-        data_type: boolean
-        description: True if the member holds an active club membership.
-      - name: is_knltb_member
-        data_type: boolean
-        description: True if the member is registered with the national tennis federation.
-      - name: temperature
-        data_type: float
-        description: Air temperature in °C at the hour of the booking.
-      - name: precipitation
-        data_type: float
-        description: Precipitation in mm at the hour of the booking.
-      - name: wind_speed
-        data_type: float
-        description: Wind speed in km/h at the hour of the booking.
-      - name: ideal_weather
-        data_type: boolean
-        description: True when tennis conditions were ideal (temp 10–35°C, no rain, wind ≤ 20 km/h).
-
-  # ── Demo-expansion marts (coaching, competition, billing, retail) ──────────
   - name: dim_coaches
     config:
       contract:
@@ -534,6 +501,13 @@ models:
     description: One row per tennis coach, with full_name and years_at_club derived at query time.
     columns:
       - name: coach_id
+        constraints:
+          # warn_unenforced: Snowflake accepts PK constraints but does not
+          # enforce them. The constraint documents the grain in the DDL and the
+          # catalogue; the uniqueness guarantee comes from the unique test
+          # below. Silences dbt1109, which would otherwise fire on every build.
+          - type: primary_key
+            warn_unenforced: false
         data_type: varchar
         description: Unique coach identifier. Primary key.
         data_tests:
@@ -580,6 +554,13 @@ models:
     description: One row per club tournament, with derived duration.
     columns:
       - name: tournament_id
+        constraints:
+          # warn_unenforced: Snowflake accepts PK constraints but does not
+          # enforce them. The constraint documents the grain in the DDL and the
+          # catalogue; the uniqueness guarantee comes from the unique test
+          # below. Silences dbt1109, which would otherwise fire on every build.
+          - type: primary_key
+            warn_unenforced: false
         data_type: varchar
         description: Unique tournament identifier. Primary key.
         data_tests:
@@ -620,6 +601,13 @@ models:
     description: One row per pro-shop product, with stock and service flags.
     columns:
       - name: product_id
+        constraints:
+          # warn_unenforced: Snowflake accepts PK constraints but does not
+          # enforce them. The constraint documents the grain in the DDL and the
+          # catalogue; the uniqueness guarantee comes from the unique test
+          # below. Silences dbt1109, which would otherwise fire on every build.
+          - type: primary_key
+            warn_unenforced: false
         data_type: varchar
         description: Unique product identifier. Primary key.
         data_tests:
@@ -660,6 +648,13 @@ models:
     description: One row per coaching lesson, enriched with coach and member attributes.
     columns:
       - name: lesson_id
+        constraints:
+          # warn_unenforced: Snowflake accepts PK constraints but does not
+          # enforce them. The constraint documents the grain in the DDL and the
+          # catalogue; the uniqueness guarantee comes from the unique test
+          # below. Silences dbt1109, which would otherwise fire on every build.
+          - type: primary_key
+            warn_unenforced: false
         data_type: varchar
         description: Unique lesson identifier. Primary key.
         data_tests:
@@ -754,6 +749,13 @@ models:
     description: One row per member registration for a tournament, enriched with tournament and member attributes.
     columns:
       - name: entry_id
+        constraints:
+          # warn_unenforced: Snowflake accepts PK constraints but does not
+          # enforce them. The constraint documents the grain in the DDL and the
+          # catalogue; the uniqueness guarantee comes from the unique test
+          # below. Silences dbt1109, which would otherwise fire on every build.
+          - type: primary_key
+            warn_unenforced: false
         data_type: varchar
         description: Unique tournament-entry identifier. Primary key.
         data_tests:
@@ -818,6 +820,13 @@ models:
     description: One row per tournament match, enriched with tournament attributes.
     columns:
       - name: match_id
+        constraints:
+          # warn_unenforced: Snowflake accepts PK constraints but does not
+          # enforce them. The constraint documents the grain in the DDL and the
+          # catalogue; the uniqueness guarantee comes from the unique test
+          # below. Silences dbt1109, which would otherwise fire on every build.
+          - type: primary_key
+            warn_unenforced: false
         data_type: varchar
         description: Unique match identifier. Primary key.
         data_tests:
@@ -899,6 +908,13 @@ models:
     description: One row per billing invoice header, enriched with member attributes.
     columns:
       - name: invoice_id
+        constraints:
+          # warn_unenforced: Snowflake accepts PK constraints but does not
+          # enforce them. The constraint documents the grain in the DDL and the
+          # catalogue; the uniqueness guarantee comes from the unique test
+          # below. Silences dbt1109, which would otherwise fire on every build.
+          - type: primary_key
+            warn_unenforced: false
         data_type: varchar
         description: Unique invoice identifier. Primary key.
         data_tests:
@@ -961,6 +977,13 @@ models:
     description: One row per invoice line item, with the parent invoice's date and member.
     columns:
       - name: line_item_id
+        constraints:
+          # warn_unenforced: Snowflake accepts PK constraints but does not
+          # enforce them. The constraint documents the grain in the DDL and the
+          # catalogue; the uniqueness guarantee comes from the unique test
+          # below. Silences dbt1109, which would otherwise fire on every build.
+          - type: primary_key
+            warn_unenforced: false
         data_type: varchar
         description: Unique line-item identifier. Primary key.
         data_tests:
@@ -1010,6 +1033,13 @@ models:
     description: One row per pro-shop sale, enriched with product and member attributes.
     columns:
       - name: transaction_id
+        constraints:
+          # warn_unenforced: Snowflake accepts PK constraints but does not
+          # enforce them. The constraint documents the grain in the DDL and the
+          # catalogue; the uniqueness guarantee comes from the unique test
+          # below. Silences dbt1109, which would otherwise fire on every build.
+          - type: primary_key
+            warn_unenforced: false
         data_type: varchar
         description: Unique transaction identifier. Primary key.
         data_tests:
@@ -1075,6 +1105,13 @@ models:
     description: One row per equipment rental, enriched with product and member attributes.
     columns:
       - name: rental_id
+        constraints:
+          # warn_unenforced: Snowflake accepts PK constraints but does not
+          # enforce them. The constraint documents the grain in the DDL and the
+          # catalogue; the uniqueness guarantee comes from the unique test
+          # below. Silences dbt1109, which would otherwise fire on every build.
+          - type: primary_key
+            warn_unenforced: false
         data_type: varchar
         description: Unique rental identifier. Primary key.
         data_tests:

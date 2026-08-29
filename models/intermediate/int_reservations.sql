@@ -1,3 +1,11 @@
+-- Materialized as a table: three downstream models read this, so as a view
+-- its dedup window function would be recomputed three times per run.
+{{
+  config(
+    materialized='table'
+  )
+}}
+
 WITH
 
 stg_reservations AS (
