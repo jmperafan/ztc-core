@@ -1,5 +1,5 @@
 WITH coaches AS (
-    SELECT * FROM {{ ref('int_coaches') }}
+    SELECT *
 ),
 
 final AS (
