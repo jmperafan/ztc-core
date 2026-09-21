@@ -67,10 +67,16 @@ jobs:
     cost_optimization_features:
       - dbt_state
 
-  # Platform-native CI, triggered by the GitHub webhook. This overlaps with the
-  # CLI-driven Slim CI in .github/workflows/dbt.yml — both build
-  # state:modified+ on a PR. Imported as-is so the file matches reality; pick
-  # one before this becomes two warehouse bills per PR.
+  # Platform-native CI, triggered by the GitHub webhook. This is the *only*
+  # build a PR gets, and the one that posts the "dbt Cloud" status check.
+  #
+  # It used to overlap with a CLI-driven Slim CI in .github/workflows/dbt.yml —
+  # both built state:modified+ on every PR, for two warehouse bills. That
+  # workflow was deleted on 2026-09-21 in favour of this job. Beyond the
+  # duplication, it could not authenticate: the dbt platform CLI reads a
+  # personal access token from dbt_cloud.yml, and the only token CI holds is a
+  # Job Admin service token, which the Administrative API accepts and the CLI
+  # does not. Reinstating a CLI-driven build means provisioning a PAT first.
   ci_demo:
     linked_id: 70437463773687
     account_id: 70437463654961
