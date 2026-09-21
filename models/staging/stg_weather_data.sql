@@ -10,7 +10,9 @@ final AS (
         dew,
         humidity,
         precip AS precipitation,
-        precipprob AS precipitation_probability,
+        -- A whole-percent probability; NUMBER(38,0) was the warehouse
+        -- default, not a decision.
+        CAST(precipprob AS NUMBER(3, 0)) AS precipitation_probability,
         preciptype AS precipitation_type,
         snow,
         snowdepth AS snow_depth,
@@ -22,8 +24,9 @@ final AS (
         visibility,
         solarradiation AS solar_radiation,
         solarenergy AS solar_energy,
-        uvindex AS uv_index,
-        severerisk AS severe_risk,
+        -- UV index is a 0-11 integer scale; it arrived as FLOAT.
+        CAST(uvindex AS NUMBER(2, 0)) AS uv_index,
+        CAST(severerisk AS NUMBER(2, 0)) AS severe_risk,
         conditions,
         icon,
         stations

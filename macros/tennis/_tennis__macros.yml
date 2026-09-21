@@ -1,4 +1,15 @@
 macros:
+  - name: is_winter_break
+    description: >
+      Returns a boolean SQL condition that evaluates to true when a date falls within
+      a known ZTC winter break period. Winter breaks are the periods when outdoor courts
+      are closed. Date ranges are driven by the winter_breaks variable in dbt_project.yml —
+      add a new [start, end] pair each season rather than editing the macro.
+    arguments:
+      - name: date_expr
+        type: string
+        description: The date column to evaluate.
+
   - name: tennis_weather
     description: >
       Returns a boolean SQL condition that evaluates to true when outdoor conditions
@@ -14,14 +25,3 @@ macros:
       - name: wind_speed
         type: float
         description: Wind speed column name, in kilometres per hour.
-
-  - name: is_winter_break
-    description: >
-      Returns a boolean SQL condition that evaluates to true when a date falls within
-      a known ZTC winter break period. Winter breaks are the periods when outdoor courts
-      are closed. Date ranges are driven by the winter_breaks variable in dbt_project.yml —
-      add a new [start, end] pair each season rather than editing the macro.
-    arguments:
-      - name: date_expr
-        type: string
-        description: The date column to evaluate.

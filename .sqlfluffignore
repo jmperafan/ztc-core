@@ -1,0 +1,10 @@
+# Project checks are DuckDB SQL against the dbt Information Schema, not
+# warehouse SQL. sqlfluff is configured for dialect=snowflake and cannot
+# resolve the info_schema() macro, so linting them produces only noise.
+#
+# dbt's own `dbt lint` reads this file too, so one entry covers both linters.
+checks/
+
+# Vendored package code is not ours to restyle.
+dbt_packages/
+target/

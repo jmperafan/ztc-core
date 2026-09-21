@@ -1,28 +1,88 @@
-[sqlfluff]
-templater = jinja
-dialect = snowflake
-max_line_length = 120
-exclude_rules = RF05,ST06
+# ══════════════════════════════════════════════════════════════════════════════
+# SQLFluff configuration
+#
+# Every rule referenced below is named with its code (CP01, ST06, …) because
+# that is how failures are reported — both by `sqlfluff lint` and by `dbt lint`,
+# which reads this same file. Searching the code should land you on the comment
+# explaining why the setting exists.
+#
+# Scope: .github/workflows/sqlfluff.yml runs
+# `sqlfluff lint models/ macros/ tests/generic/`. checks/ and snapshots/ are
+# excluded via .sqlfluffignore and the hook `exclude:` patterns in
+# .pre-commit-config.yaml — checks/ is DuckDB SQL, not Snowflake SQL, and
+# sqlfluff cannot resolve the info_schema() macro.
+# ══════════════════════════════════════════════════════════════════════════════
 
+[sqlfluff]
+
+# jinja, not dbt. The dbt templater would need a warehouse connection and a
+# working profile just to lint; the jinja templater does not, at the cost of
+# having to stub project macros by hand (see the bottom of this file).
+templater = jinja
+
+dialect = snowflake
+
+# LT05 [layout.long_lines] fires above this.
+max_line_length = 120
+
+# ── Excluded rules ────────────────────────────────────────────────────────────
+#
+# ST06  [structure.column_order] "Select wildcards then simple targets
+#       before calculations and aggregates." Fires 14 times today. Excluded
+#       rather than fixed: the column order in these models mirrors the order
+#       in the contracts and in the YAML property files, so reordering SELECT
+#       lists to satisfy a style rule would desynchronise all three — and the
+#       contracts are what downstream projects actually depend on.
+#
+# Previously also excluded, and removed as dead:
+#
+# RF05  [references.special_chars] "Do not use special characters in
+#       identifiers." Re-enabled and measured: it fires zero times across
+#       models/ and macros/, so it was dropped rather than left as cargo.
+#       Put it back if identifiers ever gain non-alphanumeric characters.
+#
+exclude_rules = ST06
+
+# ── Capitalisation ────────────────────────────────────────────────────────────
+# Everything upper. These four are the rules `dbt lint` disagrees with sqlfluff
+# on most: it reported 25 CP01/CP03/CP05 violations on code sqlfluff passes
+# clean, so the two linters are not yet interchangeable here.
+
+# CP01 — keywords: SELECT, FROM, WHERE, …
 [sqlfluff:rules:capitalisation.keywords]
 capitalisation_policy = upper
 
+# CP03 — function names: COALESCE, SUM, …
 [sqlfluff:rules:capitalisation.functions]
 capitalisation_policy = upper
 
+# CP04 — boolean/null literals: TRUE, FALSE, NULL
 [sqlfluff:rules:capitalisation.literals]
 capitalisation_policy = upper
 
+# CP05 — data types: VARCHAR, NUMBER, DATE, …
 [sqlfluff:rules:capitalisation.types]
 capitalisation_policy = upper
 
+# ── Templating ────────────────────────────────────────────────────────────────
+
 [sqlfluff:templater:jinja]
+# Teaches the jinja templater about ref(), source(), config(), var() and the
+# rest of dbt's built-ins, so they do not read as undefined.
 apply_dbt_builtins = true
 
+# Stubs for project macros called from models/. Because templater = jinja,
+# sqlfluff cannot resolve macros/ on its own and reports "Undefined jinja
+# template variable" without these. Each stub only has to parse — the returned
+# value is irrelevant, the shape is not.
+#
+# Only macros actually invoked in models/ need an entry, which today is exactly
+# the four below. clean_text, time_to_24_h and check_target are defined in
+# macros/ but called from nowhere, so they are deliberately absent rather than
+# forgotten. Add a stub here when a new macro is first used in a model.
 [sqlfluff:templater:jinja:macros]
 age_group_macro = """{% macro age_group(age) %}0{% endmacro %}"""
 tennis_weather_macro = """{% macro tennis_weather(temperature, precipitation, wind_speed) %}1 = 1{% endmacro %}"""
 is_winter_break_macro = """{% macro is_winter_break(date) %}1 = 1{% endmacro %}"""
-get_previous_hwm_macro = """{% macro get_previous_hwm(model) %}'1900-01-01'{% endmacro %}"""
-get_current_hwm_macro = """{% macro get_current_hwm(model) %}'2099-12-31'{% endmacro %}"""
 dutch_bool_macro = """{% macro dutch_bool(col) %}FALSE{% endmacro %}"""
+initcap_dutch_macro = """{% macro initcap_dutch(column) %}'x'{% endmacro %}"""

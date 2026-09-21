@@ -1,0 +1,111 @@
+name: "dbt jobs"
+
+# ----------------------------------------------------------------------------
+# Approach: the dbt platform jobs in jobs.yml are the source of truth. This
+# workflow shows the diff on a PR and applies it on merge.
+#
+#   pull_request → dbt-jobs-as-code plan   (read-only, comments nothing)
+#   push to main → dbt-jobs-as-code sync   (writes to the platform)
+#
+# Scoped by paths, so ordinary model PRs do not pay for it.
+#
+# ── Why sync runs unattended ─────────────────────────────────────────────────
+# Because the tool can only see jobs it owns. It matches YAML to platform jobs
+# by an identifier embedded in the job name — `[[deploy]]` — and any job
+# without that marker is invisible to it: never updated, never deleted.
+# Adoption is a deliberate one-off `link` run, documented in jobs.yml. So the
+# blast radius of a bad merge is the jobs already listed in that file, and the
+# review gate is the PR that changed it.
+#
+# If that is still too much, change `sync` below to `plan` and add
+# workflow_dispatch; the rest of the file is unchanged.
+#
+# ── Why -l is not optional ───────────────────────────────────────────────────
+# This account holds four projects (ztc-core, ztc-analytics, ztc-datavault,
+# ztc-motherduck). Without a scope flag the tool compares against *every* job
+# in the account, and any linked job in a sibling project — absent from this
+# file, because this file is ztc-core's — reads as a deletion.
+# --limit-projects-envs-to-yml pins the comparison to the projects and
+# environments jobs.yml actually mentions.
+#
+# Required secret:    DBT_CLOUD_API_TOKEN     (service token, Job Admin)
+# Required variable:  DBT_CLOUD_ACCOUNT_HOST  (e.g. de392.us1.dbt.com)
+#
+# The account, project and environment IDs are not secrets and live in
+# jobs.yml, which is why this file needs nothing else. Note the token needs
+# Job Admin — the read-only scope that satisfies the CLI in dbt.yml will
+# authenticate here and then fail on the first write.
+# ----------------------------------------------------------------------------
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "jobs.yml"
+      - ".github/workflows/dbt-jobs.yml"
+  push:
+    branches: [main]
+    paths:
+      - "jobs.yml"
+      - ".github/workflows/dbt-jobs.yml"
+
+concurrency:
+  # Never let two syncs race for the same job definitions. Unlike the other
+  # workflows this one does not cancel in progress: a half-applied sync is
+  # worse than a slow one.
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  JOBS_AS_CODE_VERSION: "1.21.0"
+  DBT_BASE_URL: "https://${{ vars.DBT_CLOUD_ACCOUNT_HOST }}"
+
+jobs:
+  jobs-as-code:
+    name: dbt jobs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dbt-jobs-as-code
+        run: pip install "dbt-jobs-as-code==${JOBS_AS_CODE_VERSION}"
+
+      - name: Validate jobs.yml
+        # Offline: schema and cron syntax only, no token, no network. Deliberately
+        # unskippable — same reasoning as the checks workflow. A malformed
+        # jobs.yml should fail here rather than halfway through a sync.
+        run: dbt-jobs-as-code validate jobs.yml
+
+      - name: Check credentials
+        id: creds
+        # plan and sync both need a token. Rather than fail opaquely on a fork
+        # PR, where secrets are unavailable by design, say so and stop.
+        env:
+          DBT_API_KEY: ${{ secrets.DBT_CLOUD_API_TOKEN }}
+        run: |
+          if [ -z "$DBT_API_KEY" ] || [ -z "${{ vars.DBT_CLOUD_ACCOUNT_HOST }}" ]; then
+            echo "::warning::DBT_CLOUD_API_TOKEN or DBT_CLOUD_ACCOUNT_HOST is not set — skipping plan/sync. jobs.yml was still validated."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Plan
+        if: github.event_name == 'pull_request' && steps.creds.outputs.available == 'true'
+        # Read-only. Prints the create/update/delete it *would* perform.
+        env:
+          DBT_API_KEY: ${{ secrets.DBT_CLOUD_API_TOKEN }}
+        run: dbt-jobs-as-code plan jobs.yml --limit-projects-envs-to-yml
+
+      - name: Sync
+        if: github.event_name == 'push' && steps.creds.outputs.available == 'true'
+        env:
+          DBT_API_KEY: ${{ secrets.DBT_CLOUD_API_TOKEN }}
+        run: dbt-jobs-as-code sync jobs.yml --limit-projects-envs-to-yml

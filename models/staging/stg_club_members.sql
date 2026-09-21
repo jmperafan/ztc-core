@@ -6,8 +6,8 @@ final AS (
     SELECT
         clublidnummer AS member_id,
         postcode AS post_code,
-        woonplaats AS city,
-        land AS country,
+        {{ initcap_dutch('woonplaats') }} AS city,
+        {{ initcap_dutch('land') }} AS country,
         labels,
         rollen AS roll,
         {{ dutch_bool('clublid') }} AS is_club_member,
@@ -25,10 +25,13 @@ final AS (
         opzegreden AS reasons_for_cancellation,
         opzegreden_opmerking AS reasons_for_cancellation_comment,
         TRY_TO_DATE(clubapp_login, 'DD/MM/YYYY') AS club_app_login_date,
-        CAST(dienstenpunten_dit_seizoen AS FLOAT) AS services_current_year,
-        tennis_speelsterkte_enkel AS singles_level,
-        tennis_speelsterkte_dubbel AS doubles_level,
-        padel_speelsterkte AS padel_level,
+        -- Service points are awarded whole; FLOAT invited false precision.
+        CAST(dienstenpunten_dit_seizoen AS NUMBER(3, 0)) AS services_current_year,
+        -- Speelsterkte is the KNLTB 1-9 playing-strength grade, an integer.
+        -- It arrives as FLOAT and was passed through uncast.
+        CAST(tennis_speelsterkte_enkel AS NUMBER(1, 0)) AS singles_level,
+        CAST(tennis_speelsterkte_dubbel AS NUMBER(1, 0)) AS doubles_level,
+        CAST(padel_speelsterkte AS NUMBER(1, 0)) AS padel_level,
         TRY_CAST(tennis_rating_enkel AS FLOAT) AS ranking_singles,
         TRY_CAST(tennis_rating_dubbel AS FLOAT) AS ranking_doubles,
         TRY_CAST(padel_rating AS FLOAT) AS ranking_padel,

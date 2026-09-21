@@ -1,4 +1,12 @@
 macros:
+  - name: check_target
+    description: >
+      Diagnostic macro that logs every field on the dbt `target` object plus
+      core run context (dbt_version, invocation_id, run_started_at, execute).
+      Useful when verifying which warehouse/role/database a run is pointed at,
+      or when debugging schema-name generation. Invoke with `dbt run-operation
+      check_target`.
+
   - name: generate_schema_name
     description: >
       Overrides dbt's built-in schema name generation. In production (target.name == 'prod'),
@@ -13,14 +21,6 @@ macros:
       - name: node_obj
         type: any
         description: The dbt node object for the model being compiled.
-
-  - name: check_target
-    description: >
-      Diagnostic macro that logs every field on the dbt `target` object plus
-      core run context (dbt_version, invocation_id, run_started_at, execute).
-      Useful when verifying which warehouse/role/database a run is pointed at,
-      or when debugging schema-name generation. Invoke with `dbt run-operation
-      check_target`.
 
   - name: precipitation_alert_threshold
     description: >

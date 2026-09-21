@@ -1,0 +1,95 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/dbt-labs/dbt-jobs-as-code/main/src/dbt_jobs_as_code/schemas/load_job_schema.json
+
+# ------------------------------------------------------------------------------
+# dbt platform jobs, as code.
+#
+# This file is the source of truth for the scheduled work in the ztc-core
+# project. `dbt-jobs-as-code plan` diffs it against the platform; `sync` applies
+# the diff. Both run in .github/workflows/dbt-jobs.yml — plan on every PR that
+# touches this file, sync on merge to main.
+#
+# ── What this file does NOT cover ────────────────────────────────────────────
+# Jobs only. Environments, credentials, connections and permissions still live
+# in the UI — the environment referenced below has to exist before a job can
+# point at it. If we ever want those as code too, that is the Terraform
+# provider, not this tool.
+#
+# ── How a job gets adopted ───────────────────────────────────────────────────
+# The tool matches YAML to platform jobs by an identifier embedded in the job
+# name, not by job ID: the key under `jobs:` becomes `[[key]]` appended to the
+# name in the platform. A job without that marker is invisible to the tool —
+# never updated, never deleted. That is the safety property that makes sync on
+# merge tolerable, and it is also why adopting an existing job is a deliberate
+# one-off step:
+#
+#   dbt-jobs-as-code link jobs.yml --dry-run    # show the renames
+#   dbt-jobs-as-code link jobs.yml              # apply them
+#
+# `link` reads `linked_id` below, finds that job, and renames it in place. It
+# does not touch any other field. Until it has been run, `plan` reports these
+# jobs as *creates* — it cannot see the ones already there.
+#
+# `linked_id` is excluded from the plan/sync comparison, so it is safe (and
+# useful, as documentation) to leave it here afterwards.
+#
+# ── Editing ──────────────────────────────────────────────────────────────────
+# Everything below was imported verbatim from the live jobs, so the first plan
+# after linking is a deliberate no-op. Two things in here are worth a decision
+# rather than inheritance; both are called out at the job that carries them.
+# ------------------------------------------------------------------------------
+
+jobs:
+  # Production build. Note `schedule.cron` is set but `triggers.schedule` is
+  # false: the job is dormant and runs only when something triggers it by hand
+  # or via the API. Flipping that boolean is how this job starts running on a
+  # schedule — which is exactly the kind of change that is worth a PR.
+  deploy:
+    linked_id: 70437463772472
+    account_id: 70437463654961
+    project_id: 70437463665591
+    environment_id: 70437463670526
+    name: deploy
+    settings:
+      threads: 4
+      target_name: default
+    execute_steps:
+      - dbt build
+    run_generate_sources: true
+    generate_docs: true
+    job_type: other
+    schedule:
+      cron: 2 */12 * * 0,1,2,3,4,5,6
+    triggers:
+      github_webhook: false
+      git_provider_webhook: false
+      schedule: false
+      on_merge: false
+    cost_optimization_features:
+      - dbt_state
+
+  # Platform-native CI, triggered by the GitHub webhook. This overlaps with the
+  # CLI-driven Slim CI in .github/workflows/dbt.yml — both build
+  # state:modified+ on a PR. Imported as-is so the file matches reality; pick
+  # one before this becomes two warehouse bills per PR.
+  ci_demo:
+    linked_id: 70437463773687
+    account_id: 70437463654961
+    project_id: 70437463665591
+    environment_id: 70437463670526
+    deferring_environment_id: 70437463670526
+    name: ci-demo
+    settings:
+      threads: 4
+      target_name: default
+    execute_steps:
+      - dbt build --select state:modified+ --fail-fast
+    run_generate_sources: false
+    generate_docs: false
+    job_type: ci
+    schedule:
+      cron: 2 */12 * * 0,1,2,3,4,5,6
+    triggers:
+      github_webhook: true
+      git_provider_webhook: false
+      schedule: false
+      on_merge: false

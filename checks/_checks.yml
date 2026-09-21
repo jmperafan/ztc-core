@@ -1,0 +1,262 @@
+version: 2
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PROJECT QUALITY CHECKS (dbt v2)
+#
+# Checks are SQL assertions about the project's own metadata, not its data.
+# They run in an embedded DuckDB against the dbt Information Schema, so they
+# need no warehouse connection and finish in ~10ms each. A check passes when
+# its query returns zero rows. `dbt build` runs them before any warehouse
+# work, so a convention violation fails in about a second rather than after a
+# four-minute remote run.
+#
+# ── selection_filter_on: none, on every check ────────────────────────────────
+# This is not boilerplate; it is the whole reason these are a gate.
+#
+# By default a check only evaluates resources in the current selection. Our
+# CI runs `dbt build --select state:modified+`, so the default would mean a
+# check never sees an untouched model — a violation that predates the PR is
+# invisible forever. Measured on this project: a deliberately inverted check
+# reported 36 violations unselected and 0 under `--select fct_weather`.
+# `none` makes the check evaluate the whole project regardless of selection,
+# which is what dbt-bouncer did and what these rules assume.
+#
+# ── Why one rule-group per file, in theme directories ───────────────────────
+# checks/ recurses, and a check's name is its file stem regardless of depth —
+# so checks/access/grants_policy.sql is still just `grants_policy`. The
+# directories are navigation only; nothing addresses them.
+#
+# The files are deliberately not consolidated further. severity, enabled and
+# selection_filter_on are properties of a check FILE (CheckProperties is keyed
+# by name), and the file stem is the only selection handle there is:
+# `dbt check <name>` works, `dbt check --select tag:<x>` matches resources
+# rather than checks and selects nothing. Merging rules into one script would
+# permanently forfeit the ability to run, disable, or warn-tier any of them
+# individually — which is exactly the warn-tier pattern dbt-bouncer used to
+# provide. Runtime is not a reason to merge either: the checks sum to ~0.25s
+# and the rest is process startup.
+#
+# ── What dbt-bouncer used to cover, and no longer does ──────────────────────
+# dbt-bouncer was removed once its rules lived here. The check view is a
+# deliberately narrow subset of the Information Schema — 27 columns on models,
+# 6 on node_columns — and notably has no `raw_code`, so rules that read model
+# SQL text could not come across.
+#
+# Three of those now run as local hooks in .pre-commit-config.yaml
+# (no-todo-markers, no-trailing-semicolon, model-max-lines). Two are genuinely
+# unenforced: check_source_pii_meta (node_columns exposes tags, not meta) and
+# check_macro_arguments_description_populated (macros.arguments has no
+# per-argument description).
+#
+# checks/README.md has the full accounting, plus the "considered and rejected"
+# record inherited from bouncer's Tier 3 block. Read it before adding a rule
+# that looks like an obvious win.
+# ══════════════════════════════════════════════════════════════════════════════
+
+checks:
+
+  # ── Governance: access, contracts, ownership ────────────────────────────────
+  - name: core_models_are_public_and_contracted
+    description: >
+      Core models are the cross-project API consumed by ztc_analytics. Each
+      must be access: public with an enforced contract.
+      Replaces bouncer check_model_access, check_model_has_contracts_enforced,
+      check_model_contract_enforced_for_public_model.
+    config: {severity: error, selection_filter_on: none}
+
+  - name: private_layers_stay_private
+    description: >
+      Staging and intermediate models must stay access: private so downstream
+      projects cannot ref() an implementation detail.
+    config: {severity: error, selection_filter_on: none}
+
+  - name: every_group_has_an_owner_email
+    description: >
+      Group-based access control is only useful if the group routes to a
+      contactable human.
+    config: {severity: error, selection_filter_on: none}
+
+  - name: core_models_declare_a_primary_key
+    description: >
+      Every contracted core model must declare a primary key, so the contract
+      documents grain and not just column types.
+      Replaces bouncer check_model_single_primary_key.
+    config: {severity: error, selection_filter_on: none}
+
+  - name: grants_policy
+    description: >
+      Core models must grant select, and no model may hand out more than
+      three distinct privileges.
+      Replaces bouncer check_model_grant_privilege_required,
+      check_model_number_of_grants.
+    config: {severity: error, selection_filter_on: none}
+
+  - name: metadata_and_tags
+    description: >
+      meta.owner everywhere, meta.sla and the core tag on core models, the raw
+      tag on sources.
+      Replaces bouncer check_model_has_meta_keys, check_model_has_tags,
+      check_source_has_meta_keys, check_source_has_tags. Also absorbs the
+      former every_model_has_an_owner check, of which it is a superset — it
+      asserts meta.owner on sources as well as models.
+    config: {severity: error, selection_filter_on: none}
+
+  # ── Layout and naming ───────────────────────────────────────────────────────
+  - name: naming_conventions
+    description: >
+      Layer prefixes for models, snapshots and seeds, lower_snake_case file
+      names, and one-macro-per-file with the file named after the macro.
+      Replaces bouncer check_model_names (x3), check_model_file_name,
+      check_snapshot_names, check_seed_names,
+      check_macro_name_matches_file_name.
+    config: {severity: error, selection_filter_on: none}
+
+  - name: source_naming_and_property_files
+    description: >
+      Source names are lower_snake_case and declared in a _<name>.yml under
+      models/staging.
+      Replaces bouncer check_source_names, check_source_file_name,
+      check_source_property_file_location.
+    config: {severity: error, selection_filter_on: none}
+
+  - name: model_directory_layout
+    description: >
+      Only staging, intermediate and core may exist under models/.
+      Replaces bouncer check_model_directories.
+    config: {severity: error, selection_filter_on: none}
+
+  - name: model_schema_names
+    description: >
+      Model schemas must end in staging, intermediate or core, allowing for
+      the developer prefix dev targets add.
+      Replaces bouncer check_model_schema_name.
+    config: {severity: error, selection_filter_on: none}
+
+  - name: property_files_are_colocated
+    description: >
+      A resource's YAML must sit in the same directory as the resource.
+      Replaces bouncer check_model_documented_in_same_directory,
+      check_model_property_file_location, check_macro_property_file_location,
+      and dbt-checkpoint check-model-has-properties-file.
+    config: {severity: error, selection_filter_on: none}
+
+  # ── Documentation ───────────────────────────────────────────────────────────
+  - name: documentation_is_substantive
+    description: >
+      Descriptions must clear a length floor (50 chars for models, 30 for
+      sources, snapshots, exposures and project macros). A one-word
+      description is worse than none — it looks documented.
+      Replaces bouncer check_model_description_populated,
+      check_model_documentation_coverage, check_source_description_populated,
+      check_snapshot_description_populated,
+      check_exposure_description_populated, check_macro_description_populated,
+      and dbt-checkpoint check-model-has-description,
+      check-source-has-description.
+    config: {severity: error, selection_filter_on: none}
+
+  - name: columns_are_documented
+    description: >
+      Every column on every model, source and snapshot needs a description.
+      Replaces dbt-checkpoint check-model-columns-have-desc and
+      check-source-columns-have-desc, and finally makes bouncer's
+      catalog_checks equivalents enforceable without a docs build.
+    config: {severity: error, selection_filter_on: none}
+
+  # ── Testing ─────────────────────────────────────────────────────────────────
+  - name: test_coverage
+    description: >
+      Every model needs at least one test; core models additionally need a
+      not_null and a uniqueness test, where a compound uniqueness test counts.
+      Replaces bouncer check_model_has_tests_by_type,
+      check_model_test_coverage, check_model_has_tests_by_name,
+      check_model_has_unique_test, and dbt-checkpoint check-model-has-tests.
+    config: {severity: error, selection_filter_on: none}
+
+  # ── DAG shape ───────────────────────────────────────────────────────────────
+  - name: staging_models_are_one_to_one_with_sources
+    description: >
+      A staging model may read at most one source; joining belongs in
+      intermediate.
+      Replaces bouncer check_model_depends_on_multiple_sources.
+    config: {severity: error, selection_filter_on: none}
+
+  - name: lineage_layer_rules
+    description: >
+      Layering invariants: staging reads sources only, only staging reads a
+      source, intermediate never reads core, core never reads staging
+      directly, no model reads a seed.
+      Replaces bouncer check_lineage_permitted_upstream_models (x3),
+      check_lineage_seed_cannot_be_used, check_lineage_source_cannot_be_used.
+    config: {severity: error, selection_filter_on: none}
+
+  - name: dag_size_limits
+    description: >
+      Tunable ceilings on DAG shape: at most 8 downstream models, at most 5
+      upstream models. Split from lineage_layer_rules because severity is a
+      per-file property and a threshold should be demotable to warn without
+      dragging the layering invariants with it.
+      Replaces bouncer check_model_max_fanout,
+      check_model_max_upstream_dependencies.
+    config: {severity: error, selection_filter_on: none}
+
+  - name: materialization_policy
+    description: >
+      Permitted materializations per layer, plus the rule that any model read
+      by three or more others must not stay a view.
+      Replaces bouncer check_model_materialization_permitted (x3),
+      check_model_materialization_by_fanout.
+    config: {severity: error, selection_filter_on: none}
+
+  # ── Sources and exposures ───────────────────────────────────────────────────
+  - name: source_hygiene
+    description: >
+      Sources declare a loader and a freshness policy, are read by exactly one
+      staging model, and are not declared twice.
+      Replaces bouncer check_source_freshness_populated,
+      check_source_loader_populated, check_duplicate_sources,
+      check_source_not_orphaned, check_source_min_downstream_models,
+      check_source_used_by_only_one_model,
+      check_source_used_by_models_in_same_directory. Its
+      "read from outside models/staging" arm overlapped the former
+      only_staging_reads_sources check; that rule now has a single home in
+      lineage_layer_rules, stated from the model side where the DAG rules
+      live.
+    config: {severity: error, selection_filter_on: none}
+
+  - name: exposures_depend_only_on_public_models
+    description: >
+      An exposure may only depend on the public core layer.
+      Replaces bouncer check_exposure_based_on_non_public_models.
+    config: {severity: error, selection_filter_on: none}
+
+  - name: exposure_rules
+    description: >
+      Exposures name a reachable owner, do not sit on a view, and do not
+      depend on more than five models.
+      Replaces bouncer check_exposure_has_owner, check_exposure_based_on_view,
+      check_exposure_based_on_model.
+    config: {severity: error, selection_filter_on: none}
+
+  # ── Macros ──────────────────────────────────────────────────────────────────
+  - name: macro_code_hygiene
+    description: >
+      Project macros carry no unfinished-work markers, stay under 50 lines and
+      take at most 5 arguments.
+      Replaces bouncer check_macro_code_does_not_contain_regexp_pattern,
+      check_macro_max_number_of_lines, check_macro_max_number_of_arguments.
+    config: {severity: error, selection_filter_on: none}
+
+  # ── Contracts and snapshots ─────────────────────────────────────────────────
+  - name: contract_column_types
+    description: >
+      Every column on a core model must declare a data type. A contract
+      without types is not a contract.
+      Replaces bouncer check_model_columns_have_types.
+    config: {severity: error, selection_filter_on: none}
+
+  - name: snapshot_rules
+    description: >
+      Snapshots must declare a unique_key and use the check or timestamp
+      strategy.
+      Replaces bouncer check_snapshot_has_unique_key, check_snapshot_strategy.
+    config: {severity: error, selection_filter_on: none}

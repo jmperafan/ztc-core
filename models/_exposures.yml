@@ -6,7 +6,7 @@ exposures:
     url: https://docs.getdbt.com/docs/use-dbt-semantic-layer/gsheets
     description: >
       Google Sheets connected to the dbt Semantic Layer via the native
-      dbt Cloud add-on. Enables ad-hoc metric queries directly from
+      dbt platform add-on. Enables ad-hoc metric queries directly from
       spreadsheets without writing SQL.
     depends_on:
       - ref('fct_court_usage')
