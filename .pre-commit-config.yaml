@@ -113,8 +113,16 @@ repos:
   #     .github/workflows/pre-commit.yml is no longer needed for them.
   #
   # The two below stay because they inspect raw model SQL, which the check
-  # view does not expose (it has no raw_code column). They never needed the
-  # manifest, so this block now has no manifest dependency at all.
+  # view does not expose (it has no raw_code column).
+  #
+  # Both still require target/manifest.json. check-script-ref-and-source needs
+  # it for real — it resolves each model's depends_on against the manifest's
+  # nodes. check-script-has-no-table-name needs it only incidentally: its
+  # logic is pure text, but main() loads the manifest up front to attach to a
+  # telemetry event and returns 1 if the load fails. Either way the file has
+  # to exist, so .github/workflows/pre-commit.yml runs `dbt parse` first.
+  # That costs a dbt install but no credentials: parse never connects to the
+  # warehouse (same property checks.yml relies on).
   - repo: https://github.com/dbt-checkpoint/dbt-checkpoint
     rev: v2.0.9
     hooks:
@@ -136,6 +144,10 @@ repos:
         language: pygrep
         entry: (?i)(TODO|FIXME|HACK|XXX)
         files: ^(models|macros|checks)/.+\.sql$
+        # The macro-hygiene check enforces this same rule on macro_sql, so it
+        # has to spell the markers out and would otherwise flag itself. It is
+        # the one file whose *purpose* is to contain them.
+        exclude: ^checks/macros/macro_code_hygiene\.sql$
 
       - id: no-trailing-semicolon
         name: No trailing semicolons in models
@@ -158,9 +170,8 @@ repos:
       # check-macro-has-description is deliberately absent. It used to be
       # unusable here because the hook requires SQL filename == macro name and
       # that did not hold; macros/ was since renamed so it does hold, but the
-      # hook is still not worth adding: it reads target/manifest.json, and
-      # keeping this config manifest-free is what lets the pre-commit workflow
-      # run without dbt or Snowflake credentials.
+      # hook is still not worth adding: macro descriptions are already
+      # enforced downstream, so it would only duplicate a project check.
       # Macro descriptions are enforced by the documentation_is_substantive
       # project check instead (see checks/documentation/). Each macro
       # subdirectory carries its own _<dir>__macros.yml property file, per

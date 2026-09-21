@@ -1,18 +1,22 @@
 name: "Pre-commit"
 
 # ----------------------------------------------------------------------------
-# Approach: run pre-commit against the PR's files. No dbt invocation, no
-# warehouse credentials.
+# Approach: run pre-commit against the PR's files. No warehouse credentials.
 #
-# This used to install dbt, write a Snowflake profile and run `dbt parse`
-# purely so the manifest-aware dbt-checkpoint hooks had a target/manifest.json
-# to read. Those six hooks are now dbt v2 project checks (see
-# checks/_checks.yml) and run in the dbt checks workflow via `dbt check`.
+# Six manifest-aware dbt-checkpoint hooks used to live here and are now dbt v2
+# project checks (see checks/_checks.yml), run by the dbt checks workflow via
+# `dbt check`. Two dbt-checkpoint hooks remain, because they read raw model
+# SQL and the check view has no raw_code column to expose it.
 #
-# What is left in .pre-commit-config.yaml — formatting, the generic file
-# hooks, sqlfluff, and the two dbt-checkpoint hooks that only read model SQL
-# text — never needed the manifest, so this job no longer needs credentials
-# and can never skip silently for want of them.
+# Those two still need target/manifest.json — check-script-ref-and-source
+# resolves depends_on against it, and check-script-has-no-table-name loads it
+# for telemetry before running — so this job installs dbt and parses first.
+#
+# The credential-free property is preserved, and that is the part that
+# matters: `dbt parse` validates the *shape* of a profile but never opens a
+# connection, so a placeholder profile is enough. See the longer note in
+# .github/workflows/checks.yml. This job therefore cannot skip itself for
+# want of secrets, and it runs on fork PRs.
 # ----------------------------------------------------------------------------
 
 on:
@@ -35,6 +39,40 @@ jobs:
 
       - name: Install pre-commit deps
         run: pip install -r requirements-dev.txt
+
+      - name: Install dbt
+        run: |
+          curl -fsSL https://public.cdn.getdbt.com/fs/install/install.sh | sh -s -- --update
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Write placeholder profile
+        # Intentionally invalid, and nothing here is a secret. Parsing needs a
+        # profile to exist and to be well-formed; it never dials it.
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          ztc_core:
+            target: ci
+            outputs:
+              ci:
+                type: snowflake
+                account: placeholder-precommit-do-not-connect
+                user: placeholder
+                password: placeholder
+                role: PLACEHOLDER
+                database: PLACEHOLDER
+                warehouse: PLACEHOLDER
+                schema: ci_precommit
+          EOF
+
+      - name: Install packages
+        run: dbt deps
+
+      - name: Parse project
+        # Writes target/manifest.json for the two dbt-checkpoint hooks.
+        # --no-manage-state keeps this job off api.state.dbt.com, matching
+        # checks.yml: nothing here reuses warehouse objects.
+        run: dbt parse --no-manage-state
 
       - name: Run pre-commit
         uses: pre-commit/action@v3.0.1
