@@ -17,4 +17,4 @@ final AS (
     FROM products
 )
 
--- SELECT * FROM final
+SELECT * FROM final
