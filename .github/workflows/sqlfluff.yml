@@ -3,8 +3,21 @@ name: "SQLFluff"
 # ----------------------------------------------------------------------------
 # Approach: local tooling, no credentials required.
 #
-# SQLFluff enforces consistent SQL style across models and macros.
-# Config lives in .sqlfluff; dialect and templater are set there.
+# SQLFluff enforces consistent SQL style across models, macros and the
+# custom generic tests. Config lives in .sqlfluff; dialect and templater are
+# set there.
+#
+# tests/generic/ is listed explicitly rather than all of tests/. The custom
+# generic tests moved there from macros/generic_tests/ (dbt's documented home
+# for them), and were previously linted as part of macros/ — without this they
+# would have silently dropped out of coverage.
+#
+# The singular tests directly under tests/ are deliberately NOT linted here:
+# they have never been in this command's scope and tests/
+# every_court_same_number_of_days.sql currently trips RF02. Widening to all of
+# tests/ is a worthwhile follow-up, but it is a pre-existing cleanup rather
+# than part of moving the generic tests. pre-commit's sqlfluff hook already
+# lints every .sql file that a commit touches, including those.
 #
 # Runs independently from pre-commit so failures are reported separately
 # and both checks can run in parallel.
@@ -32,4 +45,4 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: SQLFluff lint
-        run: sqlfluff lint models/ macros/
+        run: sqlfluff lint models/ macros/ tests/generic/

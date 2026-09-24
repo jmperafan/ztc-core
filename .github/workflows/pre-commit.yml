@@ -1,23 +1,22 @@
 name: "Pre-commit"
 
 # ----------------------------------------------------------------------------
-# Approach: parse the PR's own code to produce a fresh manifest, then run
-# pre-commit against it.
+# Approach: run pre-commit against the PR's files. No warehouse credentials.
 #
-# The dbt-checkpoint hooks (description, tests, properties-file, columns) read
-# target/manifest.json to know which models exist. If we downloaded prod's
-# manifest, brand-new models in the PR would always look "missing" because
-# they haven't been deployed yet. Running `dbt parse` here gives pre-commit
-# a manifest that reflects exactly what's on the PR branch.
+# Six manifest-aware dbt-checkpoint hooks used to live here and are now dbt v2
+# project checks (see checks/_checks.yml), run by the dbt checks workflow via
+# `dbt check`. Two dbt-checkpoint hooks remain, because they read raw model
+# SQL and the check view has no raw_code column to expose it.
 #
-# dbt Fusion is used here (not dbt-core) because the project uses Fusion-only
-# configs such as +static_analysis: strict, which dbt-core's parser rejects.
-# dbt parse is fast (no warehouse round-trip) but still needs a profile
-# that points at Snowflake — Fusion strict-validates the profile during
-# parse.
+# Those two still need target/manifest.json — check-script-ref-and-source
+# resolves depends_on against it, and check-script-has-no-table-name loads it
+# for telemetry before running — so this job installs dbt and parses first.
 #
-# If the Snowflake secrets/vars aren't configured the manifest-aware hooks
-# are skipped via the SKIP env var and the rest of pre-commit still runs.
+# The credential-free property is preserved, and that is the part that
+# matters: `dbt parse` validates the *shape* of a profile but never opens a
+# connection, so a placeholder profile is enough. See the longer note in
+# .github/workflows/checks.yml. This job therefore cannot skip itself for
+# want of secrets, and it runs on fork PRs.
 # ----------------------------------------------------------------------------
 
 on:
@@ -41,52 +40,39 @@ jobs:
       - name: Install pre-commit deps
         run: pip install -r requirements-dev.txt
 
-      - name: Install dbt Fusion
+      - name: Install dbt
         run: |
           curl -fsSL https://public.cdn.getdbt.com/fs/install/install.sh | sh -s -- --update
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Configure dbt profile and parse
-        id: parse
-        env:
-          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-          SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
-          SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
+      - name: Write placeholder profile
+        # Intentionally invalid, and nothing here is a secret. Parsing needs a
+        # profile to exist and to be well-formed; it never dials it.
         run: |
-          if [ -z "${{ vars.SNOWFLAKE_ACCOUNT }}" ] || [ -z "$SNOWFLAKE_USER" ] || [ -z "$SNOWFLAKE_PRIVATE_KEY" ]; then
-            echo "Snowflake secrets/vars not configured — manifest-aware hooks will be skipped."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
           mkdir -p ~/.dbt
-          # Key pair auth: Snowflake retired username+password. The PEM lives in
-          # the SNOWFLAKE_PRIVATE_KEY secret and is written to a 0600 file that
-          # dies with the runner. The passphrase is read by dbt from the env at
-          # runtime via env_var(), so it never lands on disk.
-          printf '%s\n' "$SNOWFLAKE_PRIVATE_KEY" > ~/.dbt/snowflake_key.p8
-          chmod 600 ~/.dbt/snowflake_key.p8
-
-          cat > ~/.dbt/profiles.yml << EOF
+          cat > ~/.dbt/profiles.yml << 'EOF'
           ztc_core:
             target: ci
             outputs:
               ci:
                 type: snowflake
-                account: ${{ vars.SNOWFLAKE_ACCOUNT }}
-                user: $SNOWFLAKE_USER
-                private_key_path: $HOME/.dbt/snowflake_key.p8
-                private_key_passphrase: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE') }}"
-                role: ${{ vars.SNOWFLAKE_ROLE }}
-                database: ${{ vars.SNOWFLAKE_DATABASE }}
-                warehouse: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+                account: placeholder-precommit-do-not-connect
+                user: placeholder
+                password: placeholder
+                role: PLACEHOLDER
+                database: PLACEHOLDER
+                warehouse: PLACEHOLDER
                 schema: ci_precommit
           EOF
 
-          dbt deps
-          dbt parse
+      - name: Install packages
+        run: dbt deps
+
+      - name: Parse project
+        # Writes target/manifest.json for the two dbt-checkpoint hooks.
+        # --no-manage-state keeps this job off api.state.dbt.com, matching
+        # checks.yml: nothing here reuses warehouse objects.
+        run: dbt parse --no-manage-state
 
       - name: Run pre-commit
         uses: pre-commit/action@v3.0.1
-        env:
-          SKIP: ${{ steps.parse.outputs.skip == 'true' && 'check-model-has-description,check-model-has-tests,check-model-has-properties-file,check-model-columns-have-desc,check-source-has-description,check-source-columns-have-desc' || '' }}

@@ -1,0 +1,91 @@
+name: "dbt checks"
+
+# ----------------------------------------------------------------------------
+# Approach: run the dbt v2 project checks in checks/ against the PR's own
+# code. No warehouse, no credentials, no dbt platform round-trip.
+#
+# This is the cheapest gate in the repo and deliberately the first one to
+# fail. Checks are SQL assertions about project metadata, evaluated in an
+# embedded DuckDB against the dbt Information Schema, so the whole suite
+# finishes in about a second once dbt is installed.
+#
+# ── Why this job has no secrets ──────────────────────────────────────────────
+# `dbt parse` and `dbt check` never open a warehouse connection. Verified by
+# running both against a profile full of deliberately invalid Snowflake
+# values: parse and all 24 checks succeeded. Fusion strict-validates the
+# *shape* of a profile at parse time, so one has to exist — but nothing in it
+# is ever dialled.
+#
+# That matters for more than tidiness. The dbt platform CI job skips itself
+# when Snowflake secrets are absent, which is correct for it and fatal for a
+# convention gate: the checks would silently stop running on exactly the PRs
+# where nobody noticed the secrets were missing. This job cannot skip, and it
+# also runs on fork PRs, where secrets are unavailable by design.
+#
+# ── Relationship to the other gates ──────────────────────────────────────────
+# The dbt platform CI job runs `dbt build`, which also runs these checks — but
+# it takes ~4 minutes and needs credentials. This job gives the same verdict
+# in seconds. The handful of rules checks/ cannot express (they read model SQL
+# text) are local hooks in .pre-commit-config.yaml; see checks/README.md.
+#
+# Failures here mean a model, source, macro or exposure broke a project
+# convention. The check name and the offending rows are printed in the log.
+# ----------------------------------------------------------------------------
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: dbt checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dbt
+        run: |
+          curl -fsSL https://public.cdn.getdbt.com/fs/install/install.sh | sh -s -- --update
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Write placeholder profile
+        # Intentionally invalid. Nothing here is a secret and nothing here is
+        # ever connected to — see the note at the top of this file. Keeping the
+        # values obviously fake is the point: if this job ever starts needing
+        # real credentials, something has been added to checks/ that does not
+        # belong there.
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          ztc_core:
+            target: ci
+            outputs:
+              ci:
+                type: snowflake
+                account: placeholder-checks-do-not-connect
+                user: placeholder
+                password: placeholder
+                role: PLACEHOLDER
+                database: PLACEHOLDER
+                warehouse: PLACEHOLDER
+                schema: ci_checks
+          EOF
+
+      - name: Install packages
+        run: dbt deps
+
+      - name: Parse project
+        # --write-metadata produces the dbt Information Schema that the checks
+        # query. --no-manage-state keeps this job off api.state.dbt.com: dbt
+        # State is about reusing warehouse objects, which is irrelevant here
+        # and would otherwise add a network dependency to a job that has none.
+        run: dbt parse --write-metadata --no-manage-state
+
+      - name: Run project checks
+        run: dbt check --no-manage-state

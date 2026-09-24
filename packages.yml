@@ -1,3 +1,34 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Every package here must declare a require-dbt-version that includes 2.0.0.
+# dbt v2 refuses to install one that does not, and the well-known name is not
+# always the right one any more — see dbt_expectations below.
+# ──────────────────────────────────────────────────────────────────────────────
+
 packages:
+  # Cross-database SQL helpers and the generic tests used across the project
+  # (unique_combination_of_columns backs the composite-grain core facts).
+  # require-dbt-version: >=1.3.0,<3.0.0
   - package: dbt-labs/dbt_utils
     version: [">=1.3.0", "<2.0.0"]
+
+  # Scaffolding macros: generate_source, generate_base_model,
+  # generate_model_yaml. Run via `dbt run-operation`; they emit YAML/SQL to
+  # stdout rather than creating anything in the warehouse.
+  # require-dbt-version: >=1.1.0,<3.0.0
+  - package: dbt-labs/codegen
+    version: [">=0.14.0", "<0.15.0"]
+
+  # compare_relations / compare_queries, for proving a refactor is a no-op.
+  # Useful here specifically because the dataset is static: two builds of the
+  # same logic must be byte-identical.
+  # require-dbt-version: >=1.2.0,<3.0.0
+  - package: dbt-labs/audit_helper
+    version: [">=0.14.0", "<0.15.0"]
+
+  # NOTE THE NAMESPACE. The widely-cited calogica/dbt_expectations is pinned
+  # to require-dbt-version <2.0.0 and cannot be installed on dbt v2 at all.
+  # Maintenance moved to metaplane, which declares >=1.7.0,<3.0.0. Do not
+  # "correct" this back to calogica.
+  # Pulls godatadriven/dbt_date transitively.
+  - package: metaplane/dbt_expectations
+    version: [">=0.10.10", "<0.11.0"]

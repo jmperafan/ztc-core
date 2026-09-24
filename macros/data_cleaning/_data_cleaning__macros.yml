@@ -1,19 +1,4 @@
 macros:
-  - name: dutch_bool
-    description: >
-      Parses Dutch boolean text into a real SQL BOOLEAN. The ZTC reservation
-      system stores yes/no flags as the literal Dutch words `ja` and `nee`,
-      so columns like `clublid` and `bondslid` arrive as VARCHAR. Returns
-      TRUE for `ja`, FALSE for `nee`, NULL for everything else (NULL, empty
-      strings, whitespace, or unrecognised text). Trimming and lowercasing
-      are applied. Deliberately strict: unrecognised values become NULL
-      rather than coercing to FALSE so source-data drift surfaces in
-      downstream tests rather than being silently rewritten.
-    arguments:
-      - name: column
-        type: string
-        description: The column or expression containing the Dutch boolean text.
-
   - name: age_group
     description: >
       Bins a continuous age value into 10-year groups by flooring to the nearest decade.
@@ -31,6 +16,37 @@ macros:
       - name: column
         type: string
         description: The column or expression to clean.
+
+  - name: dutch_bool
+    description: >
+      Parses Dutch boolean text into a real SQL BOOLEAN. The ZTC reservation
+      system stores yes/no flags as the literal Dutch words `ja` and `nee`,
+      so columns like `clublid` and `bondslid` arrive as VARCHAR. Returns
+      TRUE for `ja`, FALSE for `nee`, NULL for everything else (NULL, empty
+      strings, whitespace, or unrecognised text). Trimming and lowercasing
+      are applied. Deliberately strict: unrecognised values become NULL
+      rather than coercing to FALSE so source-data drift surfaces in
+      downstream tests rather than being silently rewritten.
+    arguments:
+      - name: column
+        type: string
+        description: The column or expression containing the Dutch boolean text.
+
+  - name: initcap_dutch
+    description: >
+      Title-cases a Dutch place name without the damage plain INITCAP does.
+      INITCAP lowercases everything after the first letter of each word,
+      which breaks the Dutch IJ digraph (`IJsselstein` becomes
+      `Ijsselstein`) and flattens the two-letter province suffixes that
+      disambiguate same-named towns (`BREUKELEN UT` becomes
+      `Breukelen Ut`). This macro only rewrites values that arrive fully
+      uppercased -- the ones actually broken -- and leaves correctly
+      mixed-cased values untouched, then repairs the IJ digraph and
+      re-appends the province code in its original uppercase form.
+    arguments:
+      - name: column
+        type: string
+        description: The column or expression containing the place name.
 
   - name: time_to_24_h
     description: >

@@ -17,14 +17,19 @@ dbt-cloud:
   project-id: 70437463665591
 
 # ── 1. REQUIRE A MINIMUM dbt VERSION ─────────────────────────────────────────
-# Prevents running this project on an older dbt-core that lacks features we use
-# (e.g., microbatch, unit tests, materializations introduced in 1.8).
-# Accepts a version range: ">=1.8.0,<2.0.0" is also valid.
-require-dbt-version: ">=1.8.0"
+# This project is on dbt v2 (GA 2026-09-16, the Rust engine formerly called
+# Fusion). It uses v2-only features — `+static_analysis`, project checks, and
+# the dbt Information Schema — none of which the 1.x Python parser understands,
+# so the floor is a hard 2.0.0 rather than a polite preference.
+# The <3.0.0 ceiling is the range dbt Labs recommends for v2 projects, and it
+# is also the range packages must declare to be v2-compatible (dbt_utils 1.3.3
+# declares ">=1.3.0,<3.0.0", so it qualifies).
+require-dbt-version: ">=2.0.0,<3.0.0"
 
 # ── File-path configuration (unchanged) ──────────────────────────────────────
 model-paths: ["models"]
 test-paths: ["tests"]
+check-paths: ["checks"]   # v2 project checks — see checks/_checks.yml
 seed-paths: ["seeds"]
 macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
@@ -65,6 +70,40 @@ models:
 
     # ── Project-wide defaults ────────────────────────────────────────────────
     +static_analysis: strict
+
+    # ── dbt State (v2) ───────────────────────────────────────────────────────
+    # This project models a closed historical dataset: club activity for
+    # 2022-2023, already loaded, not appended to. Nothing upstream changes
+    # unless someone reloads RAW on purpose. The defaults are tuned for the
+    # opposite case — data arriving continuously — so they are wrong here in
+    # two specific ways.
+    #
+    # lag_tolerance (default 45m) is how long dbt waits after an upstream data
+    # change before rebuilding. On a live pipeline 45m is a sensible freshness
+    # SLA. Here there is no stream to be behind, so the only thing a short
+    # tolerance buys is rebuilds triggered by source freshness timestamps
+    # wobbling. 8w is chosen to be longer than any plausible gap between
+    # someone touching this project.
+    #
+    # This governs DATA freshness only. A change to a model's SQL always
+    # forces a rebuild regardless of tolerance, which is the behaviour we
+    # actually rely on: in a static-data project, code is the only real input,
+    # so "rebuild when the code changes, otherwise reuse" is exactly right.
+    #
+    # evaluate_volatile_sql stays false (the default, stated because it is
+    # load-bearing here). int_date_spine calls CURRENT_DATE. With false, dbt
+    # treats that as static code rather than a fresh input, so the spine does
+    # not rebuild simply because the clock advanced. For a dataset that ends
+    # in 2023 that is correct — the spine has no new days to gain. Flip this
+    # to true only if this project ever tracks live data.
+    #
+    # If some models ever do go live, override per folder rather than
+    # loosening this default, e.g.:
+    #   lag_tolerance: "{{ '1h' if target.name == 'prod' else '8w' }}"
+    +state:
+      lag_tolerance: 8w
+      evaluate_volatile_sql: false
+      require_fresh_data_from: any
     +persist_docs:             # propagates model/column descriptions to Snowflake
       relation: true
       columns: true
@@ -100,6 +139,29 @@ models:
     core:
       +materialized: table
       +schema: core
+      # ── Apache Iceberg (dbt v2) ──────────────────────────────────────────
+      # Core is the published layer, so it is the layer that benefits from an
+      # open table format: ztc_analytics, and anything else holding a Horizon
+      # catalog grant, can read these tables without going through Snowflake
+      # compute.
+      #
+      # Scope note: this is set on core and nowhere else because Snowflake
+      # Iceberg has no view materialization. Staging and intermediate are
+      # views by design, so "Iceberg everywhere" is not available — setting
+      # table_format at the project root would fail all 31 of them at build.
+      #
+      # external_volume: SNOWFLAKE_MANAGED keeps storage inside Snowflake, so
+      # no S3 bucket or storage integration is needed. It is also the v2
+      # default when external_volume is unset; stated explicitly because dbt
+      # then omits BASE_LOCATION, which Snowflake rejects for managed
+      # storage, and that behaviour is worth being able to read off the page.
+      # The account does have real volumes (ICEBERG_EXT_VOL and others) if
+      # this ever needs to move to customer-managed storage.
+      #
+      # Migration caveat: the 4 incremental facts cannot convert in place —
+      # an existing non-Iceberg incremental needs a one-off --full-refresh.
+      +table_format: iceberg
+      +external_volume: SNOWFLAKE_MANAGED
       +tags: ["core", "certified"]
       +group: analytics_engineering
       +access: public
@@ -112,5 +174,16 @@ models:
 snapshots:
   ztc_core:
     +group: analytics_engineering
+# ──────────────────────────────────────────────────────────────────────────────
+# 4. dbt INFORMATION SCHEMA (v2)
+# Opts into the versioned metadata index that `dbt check` queries. dbt writes
+# the project's own metadata to Parquet under target/private/metadata (352 KB
+# here, vs a 2.0 MB manifest.json) and exposes it to DuckDB via info_schema().
+# Pinning the version means a future v2 release that adds a v2 schema will not
+# silently change what our checks are querying.
+# ──────────────────────────────────────────────────────────────────────────────
+info_schema:
+  version: 1
+
 flags:
   require_generic_test_arguments_property: true

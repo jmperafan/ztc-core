@@ -12,18 +12,167 @@ sources:
       tags: ["raw"]
       meta:
         owner: "data-engineering"
+    # Every column of every table is documented with a description and a
+    # data_type. dbt has no contract for sources — `contract: enforced` is a
+    # model-only config — so data_type here is documentation, not enforcement:
+    # it records the shape the staging layer was built against, so a type
+    # change upstream is visible in the diff and in dbt docs. Types are
+    # transcribed from RAW.INFORMATION_SCHEMA.COLUMNS, so TEXT appears as
+    # varchar and NUMBER carries its real precision and scale.
     tables:
       - name: court_usage
         description: This table contains the reservations for our courts.
         columns:
           - name: startdatum
             description: Date of the reservation.
+            data_type: varchar
             data_tests:
               - not_null
+          - name: begintijd
+            description: >
+              Start time of the reservation. Mixed format — either "HH:MI" or a full
+              "YYYY-MM-DD HH24:MI:SS" timestamp; stg_reservations normalises both to TIME.
+            data_type: varchar
+          - name: eindtijd
+            description: End time of the reservation, in the same mixed format as begintijd.
+            data_type: varchar
+          - name: uren
+            description: Booked duration in hours, as provided by the source system (0.25–15.0).
+            data_type: float
+          - name: opties
+            description: Count of booking options attached to the slot. Always 0 in the current load.
+            data_type: NUMBER(38,0)
           - name: banen
             description: Raw court identifier string, e.g. "Baan 3".
+            data_type: varchar
             data_tests:
               - not_null
+          - name: inschrijver_persoon1
+            description: Name of the primary booking member (inschrijver). Becomes player_1 downstream.
+            data_type: varchar
+          - name: persoon2
+            description: Name of the second player on the reservation.
+            data_type: varchar
+          - name: persoon3
+            description: Name of the third player on the reservation.
+            data_type: varchar
+          - name: persoon4
+            description: Name of the fourth player on the reservation.
+            data_type: varchar
+          - name: type
+            description: >
+              Reservation category — Baanreservering, Training, Competitie, Toernooi, Toss,
+              "Meet & Play boeking", Verhuur, Onderhoud, Gesloten, or Ander.
+            data_type: varchar
+          - name: beschrijving
+            description: Free-text description of the event or booking.
+            data_type: varchar
+          - name: week_year
+            description: ISO week and year of the reservation as a "YYYY-WW" string, pre-computed by the source export.
+            data_type: varchar
+          - name: month_year
+            description: Month and year of the reservation as an "MM-YYYY" string, pre-computed by the source export.
+            data_type: varchar
+          - name: year
+            description: Calendar year of the reservation, pre-computed by the source export.
+            data_type: float
+          - name: month
+            description: Calendar month of the reservation (1–12), pre-computed by the source export.
+            data_type: float
+          - name: day_of_week
+            description: >
+              Day-of-week index (0–6) pre-computed by the source export. Downstream models
+              derive their own day_of_week from reservation_date rather than trusting this.
+            data_type: float
+          - name: reserveringsdatum
+            description: Timestamp the reservation was created, as "YYYY-MM-DD HH24:MI" text.
+            data_type: varchar
+          - name: bevestiging
+            description: Timestamp the booking was confirmed, as text. NULL when the booking was never confirmed.
+            data_type: varchar
+          - name: annulering
+            description: Timestamp the booking was cancelled, as text. NULL unless the booking was cancelled.
+            data_type: varchar
+          - name: voornaam
+            description: First name of the primary booking member.
+            data_type: varchar
+          - name: tussenvoegsel
+            description: Dutch name infix of the primary booker (e.g. "van", "de"). NULL for most members.
+            data_type: varchar
+          - name: achternaam
+            description: Last name of the primary booking member.
+            data_type: varchar
+          - name: e_mail
+            description: Email address of the primary booking member.
+            data_type: varchar
+            config:
+              meta:
+                pii: true
+          - name: telefoonnummer
+            description: Phone number of the primary booking member.
+            data_type: varchar
+            config:
+              meta:
+                pii: true
+          - name: sport
+            description: Sport the booking is for. Always "Tennis" in the current load.
+            data_type: varchar
+          - name: persoon
+            description: >
+              Primary booker rendered as "Name (email)" by the source export — a denormalised
+              duplicate of voornaam, achternaam, and e_mail.
+            data_type: varchar
+            config:
+              meta:
+                pii: true
+          - name: clublidnummer
+            description: Club membership number of the primary booker. NULL for non-member bookings.
+            data_type: float
+          - name: bondsnummer
+            description: KNLTB federation number of the primary booker.
+            data_type: float
+          - name: naam
+            description: Name of the external renter on Verhuur (rental) bookings. NULL for member bookings.
+            data_type: varchar
+            config:
+              meta:
+                pii: true
+          - name: telefoonnummer_1
+            description: Phone number of the external renter. Only populated alongside naam.
+            data_type: varchar
+            config:
+              meta:
+                pii: true
+          - name: e_mail_1
+            description: Email address of the external renter. Only populated alongside naam.
+            data_type: varchar
+            config:
+              meta:
+                pii: true
+          - name: bedrag_eur
+            description: Amount charged for the booking, in euros. NULL for bookings that carry no charge.
+            data_type: float
+          - name: kortingsbedrag_giftcard
+            description: Gift-card discount applied to the booking, in euros. Only populated on external-rental rows.
+            data_type: float
+          - name: kortingsbedrag_promotie
+            description: Promotional discount applied to the booking, in euros.
+            data_type: float
+          - name: kortingsbedrag_multitickets
+            description: Multi-ticket (strippenkaart) discount applied to the booking, in euros.
+            data_type: float
+          - name: verwijscode
+            description: Referral code used when booking. Always NULL in the current load.
+            data_type: float
+          - name: kortingscode
+            description: Discount code used when booking. Always NULL in the current load.
+            data_type: float
+          - name: status
+            description: Booking status as recorded by the source — Onbevestigd (unconfirmed) or Verwijderd (deleted).
+            data_type: varchar
+          - name: boekingsbron
+            description: Channel the booking came from — Admin, PubApi, or MeetAndPlay.
+            data_type: varchar
         config:
           loaded_at_field: "CAST(startdatum AS TIMESTAMP)"
           freshness:
@@ -34,9 +183,125 @@ sources:
         columns:
           - name: clublidnummer
             description: Unique club membership number. Primary key of this table.
+            data_type: NUMBER(38,0)
             data_tests:
               - unique
               - not_null
+          - name: geboortedatum
+            description: Member's date of birth as a DD/MM/YYYY string. Parsed to DATE in stg_club_members.
+            data_type: varchar
+            config:
+              meta:
+                pii: true
+          - name: postcode
+            description: Member's postal code.
+            data_type: varchar
+            config:
+              meta:
+                pii: true
+          - name: woonplaats
+            description: Member's city of residence.
+            data_type: varchar
+          - name: land
+            description: Member's country of residence.
+            data_type: varchar
+          - name: labels
+            description: Custom labels assigned to the member in the club system (e.g. "18-").
+            data_type: varchar
+          - name: rollen
+            description: Caret-separated list of roles the member holds at the club (e.g. "Secretaris^Toegang hek").
+            data_type: varchar
+          - name: clublid
+            description: Dutch yes/no flag for active club membership. Converted to boolean by the dutch_bool macro.
+            data_type: varchar
+          - name: bondslid
+            description: Dutch yes/no flag for KNLTB federation membership. Converted to boolean by the dutch_bool macro.
+            data_type: varchar
+          - name: lid_sinds
+            description: Date the member joined the club, as a DD/MM/YYYY string.
+            data_type: varchar
+          - name: geslacht
+            description: Member's gender as recorded by the club.
+            data_type: varchar
+          - name: actieve_lidmaatschap_pen
+            description: Name of the currently active membership tier.
+            data_type: varchar
+          - name: actieve_lidmaatschap_pen_datum
+            description: Start date of the current membership tier, as a DD/MM/YYYY string.
+            data_type: varchar
+          - name: inactieve_lidmaatschap_pen
+            description: Name of the most recent lapsed membership tier.
+            data_type: varchar
+          - name: inactieve_lidmaatschap_pen_datum
+            description: Start date of the most recent lapsed membership tier, as a DD/MM/YYYY string.
+            data_type: varchar
+          - name: actieve_product_en
+            description: Additional products (e.g. locker rental) the member currently subscribes to.
+            data_type: varchar
+          - name: actieve_product_en_datum
+            description: Start date of the active additional products, as a DD/MM/YYYY string.
+            data_type: varchar
+          - name: inactieve_product_en
+            description: Additional products the member no longer subscribes to.
+            data_type: varchar
+          - name: inactieve_product_en_datum
+            description: Start date of the lapsed additional products, as a DD/MM/YYYY string.
+            data_type: varchar
+          - name: extra_informatie
+            description: >
+              Free-text extra information field. Empty across the whole current load, which is
+              why Snowflake inferred FLOAT; stg_club_members casts it to VARCHAR.
+            data_type: float
+          - name: opzegreden
+            description: Reason code for membership cancellation, if applicable.
+            data_type: varchar
+          - name: opzegreden_opmerking
+            description: Free-text comment accompanying the cancellation reason.
+            data_type: varchar
+          - name: extern_id
+            description: Identifier of the member in an external system. Always NULL in the current load.
+            data_type: float
+          - name: dienstenpunten_obv_selectie
+            description: Volunteer service points for the period selected in the export. Always NULL in the current load.
+            data_type: float
+          - name: clubapp_login
+            description: Date the member last logged in to the club app, as a DD/MM/YYYY string.
+            data_type: varchar
+          - name: dienstenpunten_dit_seizoen
+            description: Volunteer service points accumulated in the current season.
+            data_type: NUMBER(38,0)
+          - name: tennis_speelsterkte_enkel
+            description: KNLTB playing strength rating for singles (lower is stronger).
+            data_type: float
+          - name: tennis_speelsterkte_dubbel
+            description: KNLTB playing strength rating for doubles (lower is stronger).
+            data_type: float
+          - name: padel_speelsterkte
+            description: Playing strength rating for padel.
+            data_type: float
+          - name: tennis_rating_enkel
+            description: National singles ranking number. Text in the source; cast to FLOAT in stg_club_members.
+            data_type: varchar
+          - name: tennis_rating_dubbel
+            description: National doubles ranking number. Text in the source; cast to FLOAT in stg_club_members.
+            data_type: varchar
+          - name: padel_rating
+            description: National padel ranking number. Text in the source; cast to FLOAT in stg_club_members.
+            data_type: varchar
+          - name: keuze_lidmaatschap
+            description: Membership option selected at sign-up. "gewoon lidmaatschap" for every member in the current load.
+            data_type: varchar
+          - name: inschrijfformulier_zuilense_tennisclub
+            description: Ja/Nee answer to the club sign-up form question. Populated for only a handful of members.
+            data_type: varchar
+          - name: inschrijfformulier_zomer_challenge_2020_zuilense_tennisclub
+            description: Ja/Nee answer to the 2020 summer-challenge sign-up form question.
+            data_type: varchar
+          - name: vrijwilligers
+            description: >
+              Volunteer area the member signed up for (e.g. "Bar & keuken", Baanonderhoud), or an
+              explicit "Ik ben niet beschikbaar als vrijwilliger" opt-out.
+            data_type: varchar
         config:
           loaded_at_field: "CAST(current_membership_start_date AS TIMESTAMP)"
           freshness:
@@ -47,12 +312,82 @@ sources:
           Weather data for Utrecht. Timestamps are naive local time, so the 02:00 hour
           legitimately occurs twice during daylight-saving fallback.
         columns:
+          - name: name
+            description: Location label the observation applies to, as returned by the Visual Crossing API.
+            data_type: varchar
           - name: datetime
             description: >
               Naive local timestamp of the observation. DST duplicate shape is validated
               by the weather_duplicates_only_during_dst_fallback singular test.
+            data_type: varchar
             data_tests:
               - not_null
+          - name: temp
+            description: Air temperature in degrees Celsius.
+            data_type: float
+          - name: feelslike
+            description: Feels-like temperature in degrees Celsius, accounting for wind and humidity.
+            data_type: float
+          - name: dew
+            description: Dew point temperature in degrees Celsius.
+            data_type: float
+          - name: humidity
+            description: Relative humidity as a percentage (0–100).
+            data_type: float
+          - name: precip
+            description: Precipitation amount in millimetres.
+            data_type: float
+          - name: precipprob
+            description: Probability of precipitation occurring (0–100).
+            data_type: NUMBER(38,0)
+          - name: preciptype
+            description: Type of precipitation (e.g. rain, snow, freezingrain).
+            data_type: varchar
+          - name: snow
+            description: Snowfall amount in centimetres.
+            data_type: float
+          - name: snowdepth
+            description: Depth of snow on the ground in centimetres.
+            data_type: float
+          - name: windgust
+            description: Maximum wind gust speed in kilometres per hour.
+            data_type: float
+          - name: windspeed
+            description: Average wind speed in kilometres per hour.
+            data_type: float
+          - name: winddir
+            description: Wind direction in degrees (0–360, where 0/360 = North).
+            data_type: float
+          - name: sealevelpressure
+            description: Atmospheric pressure at sea level in millibars.
+            data_type: float
+          - name: cloudcover
+            description: Cloud cover as a percentage of the sky (0–100).
+            data_type: float
+          - name: visibility
+            description: Visibility distance in kilometres.
+            data_type: float
+          - name: solarradiation
+            description: Solar radiation in watts per square metre.
+            data_type: float
+          - name: solarenergy
+            description: Solar energy in mega-joules per square metre.
+            data_type: float
+          - name: uvindex
+            description: UV index value.
+            data_type: float
+          - name: severerisk
+            description: Risk score for severe weather events (0–100).
+            data_type: float
+          - name: conditions
+            description: Human-readable summary of weather conditions (e.g. "Partially cloudy").
+            data_type: varchar
+          - name: icon
+            description: Icon identifier for the weather condition, as returned by Visual Crossing.
+            data_type: varchar
+          - name: stations
+            description: Comma-separated list of weather station IDs used for this observation.
+            data_type: varchar
         config:
           loaded_at_field: datetime
           freshness:
@@ -65,9 +400,46 @@ sources:
         columns:
           - name: coach_id
             description: Unique coach identifier. Primary key of this table.
+            data_type: varchar
             data_tests:
               - unique
               - not_null
+          - name: first_name
+            description: Coach's first name.
+            data_type: varchar
+          - name: last_name
+            description: Coach's last name.
+            data_type: varchar
+          - name: email
+            description: Coach's email address.
+            data_type: varchar
+            config:
+              meta:
+                pii: true
+          - name: phone
+            description: Coach's phone number.
+            data_type: varchar
+            config:
+              meta:
+                pii: true
+          - name: hire_date
+            description: Date the coach was hired.
+            data_type: date
+          - name: specialty
+            description: Coaching specialty (e.g. Junior development, Competitive).
+            data_type: varchar
+          - name: certification_level
+            description: Coaching certification tier (Certified, Professional, Master, Elite).
+            data_type: varchar
+          - name: hourly_rate
+            description: Coaching rate per hour, in euros.
+            data_type: NUMBER(6,2)
+          - name: is_active
+            description: True if the coach is currently employed.
+            data_type: boolean
+          - name: loaded_at
+            description: Timestamp the row was landed in RAW by the ingestion script. Drives this table's source freshness.
+            data_type: timestamp_ntz
         config:
           loaded_at_field: loaded_at
           freshness:
@@ -78,9 +450,34 @@ sources:
         columns:
           - name: tournament_id
             description: Unique tournament identifier. Primary key of this table.
+            data_type: varchar
             data_tests:
               - unique
               - not_null
+          - name: name
+            description: Tournament name. Renamed to tournament_name in stg_tournaments.
+            data_type: varchar
+          - name: start_date
+            description: First day of the tournament.
+            data_type: date
+          - name: end_date
+            description: Last day of the tournament.
+            data_type: date
+          - name: category
+            description: Tournament category (Singles, Doubles, Mixed, Junior, Veterans).
+            data_type: varchar
+          - name: entry_fee
+            description: Entry fee per participant, in euros.
+            data_type: NUMBER(6,2)
+          - name: max_participants
+            description: Maximum participant capacity.
+            data_type: NUMBER(38,0)
+          - name: season_year
+            description: Season the tournament belongs to.
+            data_type: NUMBER(38,0)
+          - name: loaded_at
+            description: Timestamp the row was landed in RAW by the ingestion script. Drives this table's source freshness.
+            data_type: timestamp_ntz
         config:
           loaded_at_field: loaded_at
           freshness:
@@ -91,9 +488,34 @@ sources:
         columns:
           - name: product_id
             description: Unique product identifier. Primary key of this table.
+            data_type: varchar
             data_tests:
               - unique
               - not_null
+          - name: name
+            description: Product name. Renamed to product_name in stg_products.
+            data_type: varchar
+          - name: category
+            description: Product category (Racquet, Balls, Strings, Apparel, Footwear, Accessories, Services).
+            data_type: varchar
+          - name: brand
+            description: Product brand.
+            data_type: varchar
+          - name: unit_price
+            description: Retail unit price, in euros.
+            data_type: NUMBER(8,2)
+          - name: is_rentable
+            description: True if the product can be rented.
+            data_type: boolean
+          - name: rental_fee
+            description: Rental fee, in euros. NULL for non-rentable products.
+            data_type: NUMBER(6,2)
+          - name: stock_quantity
+            description: Units currently in stock.
+            data_type: NUMBER(38,0)
+          - name: loaded_at
+            description: Timestamp the row was landed in RAW by the ingestion script. Drives this table's source freshness.
+            data_type: timestamp_ntz
         config:
           loaded_at_field: loaded_at
           freshness:
@@ -104,9 +526,46 @@ sources:
         columns:
           - name: lesson_id
             description: Unique lesson identifier. Primary key of this table.
+            data_type: varchar
             data_tests:
               - unique
               - not_null
+          - name: member_id
+            description: Member who booked the lesson. ~5% are deliberately orphaned ('GHOST-').
+            data_type: varchar
+          - name: coach_id
+            description: Coach who taught the lesson.
+            data_type: varchar
+          - name: court_id
+            description: Raw court identifier. 'COURT-X' for deliberately orphaned bookings.
+            data_type: varchar
+          - name: lesson_date
+            description: Calendar date of the lesson.
+            data_type: date
+          - name: start_time
+            description: Start time of the lesson (TIME, 24-hour).
+            data_type: time
+          - name: duration_minutes
+            description: Lesson duration in minutes.
+            data_type: NUMBER(38,0)
+          - name: lesson_type
+            description: Lesson format (Private, Semi-private, Group, Clinic).
+            data_type: varchar
+          - name: level
+            description: Target skill level. Renamed to skill_level in stg_lessons.
+            data_type: varchar
+          - name: price
+            description: Lesson price, in euros.
+            data_type: NUMBER(7,2)
+          - name: status
+            description: Lesson status (Booked, Completed, Cancelled, No-show).
+            data_type: varchar
+          - name: created_at
+            description: Timestamp the lesson record was created in the source system.
+            data_type: timestamp_ntz
+          - name: loaded_at
+            description: Timestamp the row was landed in RAW by the ingestion script. Drives this table's source freshness.
+            data_type: timestamp_ntz
         config:
           loaded_at_field: loaded_at
           freshness:
@@ -117,9 +576,31 @@ sources:
         columns:
           - name: entry_id
             description: Unique tournament-entry identifier. Primary key of this table.
+            data_type: varchar
             data_tests:
               - unique
               - not_null
+          - name: tournament_id
+            description: Tournament the member registered for.
+            data_type: varchar
+          - name: member_id
+            description: Member who registered. ~5% are deliberately orphaned ('GHOST-').
+            data_type: varchar
+          - name: registration_date
+            description: Date the member registered.
+            data_type: date
+          - name: seed
+            description: Seeding position within the tournament (1 = top seed).
+            data_type: NUMBER(38,0)
+          - name: entry_fee_paid
+            description: Entry fee paid, in euros.
+            data_type: NUMBER(6,2)
+          - name: final_placement
+            description: Final result (Champion, Runner-up, Semifinalist, … Eliminated).
+            data_type: varchar
+          - name: loaded_at
+            description: Timestamp the row was landed in RAW by the ingestion script. Drives this table's source freshness.
+            data_type: timestamp_ntz
         config:
           loaded_at_field: loaded_at
           freshness:
@@ -130,9 +611,43 @@ sources:
         columns:
           - name: match_id
             description: Unique match identifier. Primary key of this table.
+            data_type: varchar
             data_tests:
               - unique
               - not_null
+          - name: tournament_id
+            description: Tournament the match belongs to.
+            data_type: varchar
+          - name: player1_member_id
+            description: First player in the match.
+            data_type: varchar
+          - name: player2_member_id
+            description: Second player in the match.
+            data_type: varchar
+          - name: court_id
+            description: Raw court identifier the match was played on.
+            data_type: varchar
+          - name: match_date
+            description: Date the match was played.
+            data_type: date
+          - name: start_time
+            description: Start time of the match (TIME, 24-hour).
+            data_type: time
+          - name: duration_minutes
+            description: Match duration in minutes.
+            data_type: NUMBER(38,0)
+          - name: winner_member_id
+            description: Match winner (one of player1_member_id or player2_member_id).
+            data_type: varchar
+          - name: score
+            description: Final score string (e.g. "6-4, 6-3").
+            data_type: varchar
+          - name: round_name
+            description: Round of the match (Round of 32 … Final, Consolation).
+            data_type: varchar
+          - name: loaded_at
+            description: Timestamp the row was landed in RAW by the ingestion script. Drives this table's source freshness.
+            data_type: timestamp_ntz
         config:
           loaded_at_field: loaded_at
           freshness:
@@ -143,9 +658,34 @@ sources:
         columns:
           - name: invoice_id
             description: Unique invoice identifier. Primary key of this table.
+            data_type: varchar
             data_tests:
               - unique
               - not_null
+          - name: member_id
+            description: Member billed. ~5% are deliberately orphaned ('GHOST-').
+            data_type: varchar
+          - name: invoice_date
+            description: Date the invoice was issued.
+            data_type: date
+          - name: due_date
+            description: Date payment is due (invoice_date + 30 days).
+            data_type: date
+          - name: total_amount
+            description: Invoice total, in euros (sum of its line items).
+            data_type: NUMBER(10,2)
+          - name: status
+            description: Invoice status (Paid, Pending, Overdue).
+            data_type: varchar
+          - name: payment_method
+            description: Payment method (Credit Card, Direct Debit, Bank Transfer, Cash).
+            data_type: varchar
+          - name: paid_date
+            description: Date the invoice was paid. NULL if unpaid.
+            data_type: date
+          - name: loaded_at
+            description: Timestamp the row was landed in RAW by the ingestion script. Drives this table's source freshness.
+            data_type: timestamp_ntz
         config:
           loaded_at_field: loaded_at
           freshness:
@@ -156,9 +696,31 @@ sources:
         columns:
           - name: line_item_id
             description: Unique line-item identifier. Primary key of this table.
+            data_type: varchar
             data_tests:
               - unique
               - not_null
+          - name: invoice_id
+            description: Parent invoice the line item belongs to.
+            data_type: varchar
+          - name: category
+            description: Line-item category (Membership, Court Fee, Lesson, Pro Shop, …).
+            data_type: varchar
+          - name: description
+            description: Free-text line description.
+            data_type: varchar
+          - name: quantity
+            description: Quantity billed.
+            data_type: NUMBER(38,0)
+          - name: unit_amount
+            description: Per-unit amount, in euros.
+            data_type: NUMBER(8,2)
+          - name: line_amount
+            description: Total line amount (quantity × unit_amount), in euros.
+            data_type: NUMBER(10,2)
+          - name: loaded_at
+            description: Timestamp the row was landed in RAW by the ingestion script. Drives this table's source freshness.
+            data_type: timestamp_ntz
         config:
           loaded_at_field: loaded_at
           freshness:
@@ -169,9 +731,34 @@ sources:
         columns:
           - name: transaction_id
             description: Unique transaction identifier. Primary key of this table.
+            data_type: varchar
             data_tests:
               - unique
               - not_null
+          - name: member_id
+            description: Member who made the purchase.
+            data_type: varchar
+          - name: product_id
+            description: Product sold.
+            data_type: varchar
+          - name: transaction_date
+            description: Date of the sale.
+            data_type: date
+          - name: quantity
+            description: Units sold.
+            data_type: NUMBER(38,0)
+          - name: unit_price
+            description: Per-unit price, in euros.
+            data_type: NUMBER(8,2)
+          - name: discount_pct
+            description: Discount percentage applied (0, 10, or 20).
+            data_type: NUMBER(4,2)
+          - name: total_amount
+            description: Final amount charged after discount, in euros.
+            data_type: NUMBER(10,2)
+          - name: loaded_at
+            description: Timestamp the row was landed in RAW by the ingestion script. Drives this table's source freshness.
+            data_type: timestamp_ntz
         config:
           loaded_at_field: loaded_at
           freshness:
@@ -182,9 +769,34 @@ sources:
         columns:
           - name: rental_id
             description: Unique rental identifier. Primary key of this table.
+            data_type: varchar
             data_tests:
               - unique
               - not_null
+          - name: member_id
+            description: Member who rented the equipment.
+            data_type: varchar
+          - name: product_id
+            description: Product rented.
+            data_type: varchar
+          - name: rental_date
+            description: Date the equipment was rented out.
+            data_type: date
+          - name: return_date
+            description: Date the equipment was returned. NULL if not yet returned.
+            data_type: date
+          - name: rental_fee
+            description: Base rental fee, in euros.
+            data_type: NUMBER(6,2)
+          - name: late_fee
+            description: Late-return fee, in euros (0 if returned on time).
+            data_type: NUMBER(6,2)
+          - name: was_returned
+            description: True if the equipment has been returned.
+            data_type: boolean
+          - name: loaded_at
+            description: Timestamp the row was landed in RAW by the ingestion script. Drives this table's source freshness.
+            data_type: timestamp_ntz
         config:
           loaded_at_field: loaded_at
           freshness:

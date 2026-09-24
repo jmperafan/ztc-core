@@ -1,3 +1,19 @@
+# Hook interpreter is pinned to match the Python that CI's pre-commit job uses
+# (.github/workflows/pre-commit.yml sets up 3.11), so a local run and a CI run
+# build identical hook environments.
+#
+# The pin is load-bearing, not cosmetic: dbt-checkpoint pulls in pydantic, which
+# hard-pins pydantic-core==2.33.2. That version ships no cp314 wheel, so on
+# Python 3.14 pip falls back to compiling it and pyo3 0.24 aborts ("configured
+# Python interpreter version (3.14) is newer than PyO3's maximum supported
+# version"). pre-commit then dies before running a single hook. Homebrew's
+# python3 is 3.14, so any dev without this pin hits that wall.
+#
+# Requires a python3.11 on PATH: `uv python install 3.11` links one into
+# ~/.local/bin. Bump this once dbt-checkpoint's pydantic floor allows 3.14.
+default_language_version:
+  python: python3.11
+
 repos:
   ######
   #
@@ -72,46 +88,91 @@ repos:
   - repo: https://github.com/sqlfluff/sqlfluff
     rev: 3.1.0
     hooks:
+      # checks/ is excluded alongside snapshots/: project checks are DuckDB
+      # SQL against the dbt Information Schema, not Snowflake SQL against the
+      # warehouse. sqlfluff is pinned to dialect=snowflake and cannot resolve
+      # the info_schema() macro, so it reports every check as unparsable.
       - id: sqlfluff-lint
-        exclude: ^snapshots/
+        exclude: ^(snapshots|checks)/
       - id: sqlfluff-fix
-        exclude: ^snapshots/
+        exclude: ^(snapshots|checks)/
 
-  # dbt-checkpoint: static checks on dbt models, sources, and macros.
-  # The manifest-aware hooks expect target/manifest.json — run `dbt parse`
-  # locally (or `dbt build`) before committing if the hooks complain.
+  # dbt-checkpoint: reduced to the two hooks that read model SQL text.
+  #
+  # The six manifest-aware hooks that used to live here (check-model-has-
+  # description, -has-tests, -has-properties-file, -columns-have-desc,
+  # check-source-has-description, -columns-have-desc) are now dbt v2 project
+  # checks — see checks/_checks.yml. That is a straight upgrade rather than a
+  # like-for-like move:
+  #
+  #   * they run on every `dbt build`, before any warehouse work, instead of
+  #     only on files touched by a commit;
+  #   * they read the dbt Information Schema, so they no longer need
+  #     target/manifest.json to exist and be current;
+  #   * consequently the manifest-aware SKIP dance in
+  #     .github/workflows/pre-commit.yml is no longer needed for them.
+  #
+  # The two below stay because they inspect raw model SQL, which the check
+  # view does not expose (it has no raw_code column).
+  #
+  # Both still require target/manifest.json. check-script-ref-and-source needs
+  # it for real — it resolves each model's depends_on against the manifest's
+  # nodes. check-script-has-no-table-name needs it only incidentally: its
+  # logic is pure text, but main() loads the manifest up front to attach to a
+  # telemetry event and returns 1 if the load fails. Either way the file has
+  # to exist, so .github/workflows/pre-commit.yml runs `dbt parse` first.
+  # That costs a dbt install but no credentials: parse never connects to the
+  # warehouse (same property checks.yml relies on).
   - repo: https://github.com/dbt-checkpoint/dbt-checkpoint
     rev: v2.0.9
     hooks:
-      # Models — scope to models/ and include YAML so the hooks can read
-      # property files directly instead of relying on the manifest (which is
-      # always stale for new models in CI's prod-manifest fetch).
-      - id: check-model-has-description
-        files: ^models/.+\.(sql|ya?ml)$
-      - id: check-model-has-tests
-        files: ^models/.+\.(sql|ya?ml)$
-      - id: check-model-has-properties-file
-        files: ^models/.+\.(sql|ya?ml)$
-      - id: check-model-columns-have-desc
-        files: ^models/.+\.(sql|ya?ml)$
-      # SQL style — these don't need the manifest
       - id: check-script-ref-and-source
         files: ^models/.+\.sql$
       - id: check-script-has-no-table-name
         files: ^models/.+\.sql$
-      # Sources — scope to models/ YAML where source blocks live.
-      # check-source-has-freshness is intentionally omitted: it only reads
-      # top-level loaded_at_field/freshness, but dbt Fusion's strict schema
-      # requires those under `config:`. The two are mutually incompatible
-      # until dbt-checkpoint catches up to v12 manifest schema.
-      - id: check-source-has-description
-        files: ^models/.+\.ya?ml$
-      - id: check-source-columns-have-desc
-        files: ^models/.+\.ya?ml$
-      # check-macro-has-description was tried but is incompatible with this
-      # project's macro layout: the hook requires SQL filename == macro name,
-      # which does not hold here (e.g. macros/data_cleaning/age_groups.sql
-      # defines age_group).
-      # Macro descriptions are enforced by dbt-bouncer instead
-      # (check_macro_description_populated). Each macro subdirectory carries its
-      # own _<dir>__macros.yml property file, per dbt's structure guide.
+
+  # ── Rules inherited from dbt-bouncer ────────────────────────────────────────
+  # These three read model SQL text. dbt v2 project checks cannot: the check
+  # view has no raw_code column. When dbt-bouncer was removed they would have
+  # lost all enforcement, so they live here instead — see checks/README.md for
+  # the full accounting of what moved where.
+  - repo: local
+    hooks:
+      - id: no-todo-markers
+        name: No unfinished-work markers in SQL
+        description: Replaces dbt-bouncer check_model_code_does_not_contain_regexp_pattern.
+        language: pygrep
+        entry: (?i)(TODO|FIXME|HACK|XXX)
+        files: ^(models|macros|checks)/.+\.sql$
+        # The macro-hygiene check enforces this same rule on macro_sql, so it
+        # has to spell the markers out and would otherwise flag itself. It is
+        # the one file whose *purpose* is to contain them.
+        exclude: ^checks/macros/macro_code_hygiene\.sql$
+
+      - id: no-trailing-semicolon
+        name: No trailing semicolons in models
+        description: >
+          Replaces dbt-bouncer check_model_has_semi_colon. A trailing semicolon
+          breaks the CTAS wrapping dbt puts around a model.
+        language: pygrep
+        entry: ;[ \t]*$
+        files: ^models/.+\.sql$
+
+      - id: model-max-lines
+        name: Models under 150 lines
+        description: Replaces dbt-bouncer check_model_max_number_of_lines.
+        language: system
+        pass_filenames: true
+        files: ^models/.+\.sql$
+        entry: >-
+          bash -c 'rc=0; for f in "$@"; do n=$(wc -l < "$f"); if [ "$n" -gt 150 ];
+          then echo "$f: $n lines (max 150)"; rc=1; fi; done; exit $rc' --
+      # check-macro-has-description is deliberately absent. It used to be
+      # unusable here because the hook requires SQL filename == macro name and
+      # that did not hold; macros/ was since renamed so it does hold, but the
+      # hook is still not worth adding: macro descriptions are already
+      # enforced downstream, so it would only duplicate a project check.
+      # Macro descriptions are enforced by the documentation_is_substantive
+      # project check instead (see checks/documentation/). Each macro
+      # subdirectory carries its own _<dir>__macros.yml property file, per
+      # dbt's structure guide.
