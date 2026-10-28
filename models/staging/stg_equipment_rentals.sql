@@ -1,7 +1,7 @@
 WITH
 
 source AS (
-    SELECT * FROM {{ source('ztc', 'equipment_rentals') }}
+    SELECT * FROM --{{ source('ztc', 'equipment_rentals') }}
 ),
 
 renamed AS (
