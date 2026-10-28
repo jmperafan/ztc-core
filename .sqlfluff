@@ -33,6 +33,10 @@ max_line_length = 120
 #       in the contracts and in the YAML property files, so reordering SELECT
 #       lists to satisfy a style rule would desynchronise all three — and the
 #       contracts are what downstream projects actually depend on.
+# AM04  [ambiguous.column_count] "Query produces an unknown number of result
+#       columns." Fires on the intentional `SELECT * FROM final` closing
+#       the intermediate models, where the jinja templater cannot see the
+#       upstream columns. Excluded rather than expanding every wildcard.
 #
 # Previously also excluded, and removed as dead:
 #
@@ -41,7 +45,7 @@ max_line_length = 120
 #       models/ and macros/, so it was dropped rather than left as cargo.
 #       Put it back if identifiers ever gain non-alphanumeric characters.
 #
-exclude_rules = ST06
+exclude_rules = ST06, AM04
 
 # ── Capitalisation ────────────────────────────────────────────────────────────
 # Everything upper. These four are the rules `dbt lint` disagrees with sqlfluff
