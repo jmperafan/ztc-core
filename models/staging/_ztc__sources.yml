@@ -173,11 +173,13 @@ sources:
           - name: boekingsbron
             description: Channel the booking came from — Admin, PubApi, or MeetAndPlay.
             data_type: varchar
+        # Static historical data (latest reservation 2024-10-24). Warn-only: the data is static, so an
+        # error threshold could never pass. loaded_at_field is cast because the raw
+        # column is varchar and Fusion requires a timestamp.
         config:
           loaded_at_field: "CAST(startdatum AS TIMESTAMP)"
           freshness:
-            warn_after: {count: 3, period: day}
-            error_after: {count: 7, period: day}
+            warn_after: {count: 90, period: day}
       - name: club_members
         description: This table contains information about our members.
         columns:
@@ -302,11 +304,13 @@ sources:
               Volunteer area the member signed up for (e.g. "Bar & keuken", Baanonderhoud), or an
               explicit "Ik ben niet beschikbaar als vrijwilliger" opt-out.
             data_type: varchar
+        # Static export (latest membership date 2023-12-31). Warn-only: the data is static, so an
+        # error threshold could never pass. loaded_at_field is cast because the raw
+        # column is varchar and Fusion requires a timestamp.
         config:
-          loaded_at_field: "CAST(current_membership_start_date AS TIMESTAMP)"
+          loaded_at_field: "TRY_TO_TIMESTAMP(actieve_lidmaatschap_pen_datum, 'DD/MM/YYYY')"
           freshness:
-            warn_after: {count: 30, period: day}
-            error_after: {count: 90, period: day}
+            warn_after: {count: 90, period: day}
       - name: weather_data
         description: >
           Weather data for Utrecht. Timestamps are naive local time, so the 02:00 hour
@@ -388,11 +392,13 @@ sources:
           - name: stations
             description: Comma-separated list of weather station IDs used for this observation.
             data_type: varchar
+        # Static historical data (latest observation 2024-02-01). Warn-only: the data is static, so an
+        # error threshold could never pass. loaded_at_field is cast because the raw
+        # column is varchar and Fusion requires a timestamp.
         config:
-          loaded_at_field: datetime
+          loaded_at_field: "TRY_TO_TIMESTAMP(datetime)"
           freshness:
-            warn_after: {count: 1, period: day}
-            error_after: {count: 3, period: day}
+            warn_after: {count: 90, period: day}
       # ── Demo expansion tables (coaching, competition, billing, retail) ──
       # Static historical demo data; no freshness configs by design.
       - name: coaches
