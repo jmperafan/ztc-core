@@ -1,7 +1,7 @@
 WITH
 
 stg_matches AS (
-    SELECT * FROM {{ ref('stg_matches') }}
+    SELECT * FROM --{{ ref('stg_matches') }}
 ),
 
 int_tournaments AS (
