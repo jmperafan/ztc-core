@@ -58,6 +58,9 @@ concurrency:
 
 env:
   JOBS_AS_CODE_VERSION: "1.21.0"
+  # Keep the [[identifier]] tag in the job description, not the job name, so
+  # the jobs in the platform read "deploy" and "ci".
+  DBT_JOBS_AS_CODE_USE_DESC_FOR_ID: "True"
   DBT_BASE_URL: "https://${{ vars.DBT_CLOUD_ACCOUNT_HOST }}"
 
 jobs:
