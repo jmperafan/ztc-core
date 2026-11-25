@@ -1,7 +1,7 @@
 WITH
 
 stg_coaches AS (
-    SELECT * FROM {{ ref('stg_coaches') }}
+    SELECT * FROM --{{ ref('stg_coaches') }}
 ),
 
 deduped AS (
